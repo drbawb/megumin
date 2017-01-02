@@ -1,59 +1,20 @@
 #[macro_use] extern crate glium;
 extern crate rusttype;
 
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
+#[allow(dead_code)] mod input;
+#[allow(dead_code)] mod units;
+
+mod square; // TODO: dev mesh
+
 use std::time::{Duration, Instant};
 use std::thread;
 
+use glium::{DisplayBuild, Surface};
+use glium::glutin::{Event, ElementState, WindowBuilder};
+use glium::glutin::VirtualKeyCode as VKC;
 
-use glium::{DisplayBuild, Program, Surface, VertexBuffer};
-use glium::backend::Facade;
-use glium::glutin::{Event, WindowBuilder};
-use glium::index::{NoIndices, PrimitiveType};
-use glium::texture::{Texture2d};
-
-
-use rusttype::FontCollection;
-use rusttype::{Point as RTPoint, Scale as RTScale};
-
-static FONT_PATH: &'static str = "./assets/DroidSansMono.ttf";
-
-#[derive(Copy, Clone, Debug)]
-struct V2 { pos: [f32; 2], tex_coords: [f32; 2] }
-implement_vertex!(V2, pos, tex_coords);
-
-#[derive(Copy, Clone, Debug)]
-struct V3 { pos: [f32; 3] }
-implement_vertex!(V3, pos);
-
-static V_SHADE_TEXT: &'static str = r#"
-#version 140
-
-in vec2 pos;
-in vec2 tex_coords;
-out vec2 v_tex_coords;
-
-void main() {
-    v_tex_coords = tex_coords;
-    gl_Position = vec4(pos, 0.0, 1.0);
-}
-"#;
-
-static F_SHADE_TEXT: &'static str = r#"
-#version 140
-
-in vec2 v_tex_coords;
-out vec4 color;
-
-uniform sampler2D tex;
-
-void main() {
-    color = texture(tex, v_tex_coords);
-}
-"#;
-
+use input::Input;
+use square::Square;
 
 fn main() {
     println!("initializing display ...");
