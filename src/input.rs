@@ -11,6 +11,7 @@ pub struct Input {
 	released_keys:  HashMap<u32, bool>,
 	held_keys:      HashMap<u32, bool>,
 
+    cursor_xy: (i32, i32),
 }
 
 impl Input {
@@ -19,6 +20,8 @@ impl Input {
 			pressed_keys:   HashMap::<u32, bool>::new(),
 			released_keys:  HashMap::<u32, bool>::new(),
 			held_keys:      HashMap::<u32, bool>::new(),
+
+            cursor_xy: (0,0),
 		}
 	}
 
@@ -27,6 +30,9 @@ impl Input {
 		self.pressed_keys.clear();
 		self.released_keys.clear();
 	}
+
+    /// Handles a mouse movement event
+    pub fn move_cursor(&mut self, x: i32, y: i32) { self.cursor_xy = (x,y) }
 
 	/// Handles a key down event
 	pub fn key_down_event(&mut self, key: VirtualKeyCode) {
@@ -39,6 +45,9 @@ impl Input {
 		self.released_keys.insert(key as u32, true);
 		self.held_keys.insert(key as u32, false);
 	}
+
+    /// Fetches coordinate of mouse cursor in screen space
+    pub fn get_cursor(&self) -> (i32, i32) { self.cursor_xy }
 
 	/// Responds true if key was pressed since last call to `beginNewFrame()`.
 	/// Responds false otherwise.

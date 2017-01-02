@@ -4,8 +4,8 @@ in vec2 vt_coords;
 out vec4 color;
 
 uniform sampler2D tex;
-uniform float tofs;
+uniform vec2 tofs;
 
 void main() {
-    color = texture(tex, vec2(vt_coords.x, vt_coords.y + tofs));
+    color = texture(tex, vec2(vt_coords.x + tofs.x, vt_coords.y + tofs.y));
 }

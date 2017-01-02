@@ -7,7 +7,6 @@ pub trait AsGame  { fn to_game(&self)   -> Game;  }
 pub trait AsTile  { fn to_tile(&self)  -> Tile;  }
 pub trait AsPixel { fn to_pixel(&self) -> Pixel; }
 
-// GL shit ....
 #[derive(Copy, Clone, Debug)]
 pub struct V2 { pub pos: [f32; 2], pub uv: [f32; 2] }
 implement_vertex!(V2, pos, uv);
@@ -15,9 +14,6 @@ implement_vertex!(V2, pos, uv);
 #[derive(Copy, Clone, Debug)]
 pub struct V3 { pub pos: [f32; 3] }
 implement_vertex!(V3, pos);
-
-
-
 
 /// A `Game` unit represents a density-independent distance in pixels.
 /// Converting a `Game` to pixels will round it to the nearest coordinate,
