@@ -3,7 +3,6 @@ extern crate rusttype;
 
 #[allow(dead_code)] mod input;
 #[allow(dead_code)] mod units;
-
 mod square; // TODO: dev mesh
 
 use std::time::{Duration, Instant};
@@ -17,6 +16,7 @@ use input::Input;
 use square::Square;
 
 fn main() {
+    // setup hardware
     println!("initializing display ...");
     let display = WindowBuilder::new()
                                 .build_glium()
@@ -24,20 +24,26 @@ fn main() {
 
     // TODO: engine state block
     let mut controller =  Input::new();
-    let mut frame_time = Duration::from_millis(1000 / 60); // 60FPS
     let mut square = Square::new(&display);
+
+    // game clock
+    let target_fps = Duration::from_millis(1000 / 60);
+    let mut frame_clock = Instant::now();
+    let mut frame_start = frame_clock;
 
     println!("starting game loop ...");
     'runloop: loop {
+        frame_start = Instant::now();
+
         // handle input
         controller.begin_new_frame();
         for ev in display.poll_events() {
             match ev {
                 Event::Closed => break 'runloop,
 
-                Event::KeyboardInput(ElementState::Pressed, code, Some(cap))  => controller.key_down_event(cap),
-                Event::KeyboardInput(ElementState::Released, code, Some(cap)) => controller.key_up_event(cap),
-                Event::KeyboardInput(_, code, None) => panic!("uknown key code: {}", code),
+                Event::KeyboardInput(ElementState::Pressed,  _code, Some(cap)) => controller.key_down_event(cap),
+                Event::KeyboardInput(ElementState::Released, _code, Some(cap)) => controller.key_up_event(cap),
+                Event::KeyboardInput(_, code, None) => println!("uknown key code: {}", code),
                 _ => (),
             }
         }
@@ -50,8 +56,20 @@ fn main() {
         frame.clear_color(0.0, 0.0, 0.0, 1.0);
         square.draw(&mut frame);
         frame.finish().expect("could not close frame");
-        thread::sleep(frame_time);
+
+        let dt = (Instant::now()).duration_since(frame_start);
+        if dt > target_fps { println!("missed frame"); continue }
+
+        let draw_time = target_fps - dt;
+        thread::sleep(draw_time);
     }
 
     println!("goodbye ...");
 }
+
+// fn dt_to_millis(duration: Duration) -> u64 {
+//     let secs  = duration.as_secs();
+//     let nanos = duration.subsec_nanos();
+// 
+//     (secs * 1000) + (nanos as u64 / 1_000_000)
+// }
