@@ -8,6 +8,7 @@ mod render;
 use std::time::{Duration, Instant};
 use std::thread;
 
+// TODO: move window construction to render module?
 use glium::DisplayBuild;
 use glium::glutin::{Event, ElementState, WindowBuilder};
 use glium::glutin::VirtualKeyCode as VKC;
@@ -101,7 +102,7 @@ fn main() {
             }
         }
 
-        // handle escape key
+        // exit immediately on escape
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
 
         // scroll square interior
@@ -110,11 +111,15 @@ fn main() {
         if controller.is_key_held(VKC::Down)  { block.down();  }
         if controller.is_key_held(VKC::Left)  { block.left();  }
 
-        // draw the square to the rear framebuffer
-        render_jobs.push(RenderJob::ClearDepth(1.0));
+        // prepare render queue
         render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
+        render_jobs.push(RenderJob::ClearDepth(1.0));
         block.draw(&mut render_jobs);
-        renderer.draw(&render_jobs[..]);
+
+        // draw queue to back buffer
+        let mut frame = display.draw();
+        renderer.draw(&render_jobs[..], &mut frame);
+        frame.finish().unwrap();
 
         let dt = (Instant::now()).duration_since(frame_start);
         if dt > target_fps { println!("missed frame"); continue }

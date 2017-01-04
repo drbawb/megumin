@@ -15,6 +15,10 @@ static MAX_RECTS: usize = 1000;
 static SHD_SQUARE_VTX: &'static str = include_str!("../assets/shaders/square.glsv");
 static SHD_SQUARE_FRG: &'static str = include_str!("../assets/shaders/square.glsf");
 
+/// BasicShader is a simple GPU program: 
+/// - plots verts as triangles (index buffer = identity)
+/// - the verts are interleaved w/ coords in UV space
+/// - UV coords are passed to the fragment shader for simple 2D texturing.
 struct BasicShader {
     pub vbuf: VertexBuffer<V2>,
     pub ibuf: NoIndices,
@@ -71,7 +75,7 @@ fn gen_checkers(buf: &mut Vec<Vec<(u8,u8,u8,u8)>>) {
 /// These are ultimately used to render a single scene by operating on a list
 /// of render jobs in an order decided by the renderer.
 pub struct RenderGroup<'scn> {
-    gpu:     &'scn GlutinFacade,
+    _gpu:    &'scn GlutinFacade,
     config:  &'scn DrawParameters<'scn>,
     shader:  BasicShader,
 }
@@ -82,15 +86,13 @@ impl<'scn> RenderGroup<'scn> {
 
         RenderGroup {
             config: draw_params,
-            gpu:    display,
+            _gpu:   display,
             shader: gpu_program,
         }
     }
 
-    pub fn draw(&mut self, draw_list: &[RenderJob]) {
-         let mut frame = self.gpu.draw();
+    pub fn draw<S: Surface>(&mut self, draw_list: &[RenderJob], frame: &mut S) {
          let mut ofs = [0.0, 0.0];
-
          for job in draw_list {
             match *job {
                 RenderJob::ClearDepth(depth)    => frame.clear_depth(depth),
@@ -132,8 +134,6 @@ impl<'scn> RenderGroup<'scn> {
                 },
             }
         }       
-
-        frame.finish().expect("did not finish rendering frame ...");
     }
 }
 
@@ -146,10 +146,9 @@ pub struct Rect {
 }
 
 
-#[derive(Copy, Clone)]
 pub enum RenderJob {
     ClearDepth(f32),
     ClearScreen(f32, f32, f32, f32),
     DrawRect(Rect),
-    UniformOffset([f32; 2]),
+    UniformOffset([f32; 2]), // TODO: grosssssss... state in my renderer?
 }
