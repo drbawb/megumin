@@ -15,6 +15,39 @@ use glium::glutin::VirtualKeyCode as VKC;
 use input::Input;
 use render::{RenderGroup, RenderJob};
 
+struct ScrollyBox { ofs: [f32; 2] }
+impl ScrollyBox {
+    pub fn new() -> Self {
+        ScrollyBox { ofs: [0.0, 0.0] }
+    }
+
+    pub fn up(&mut self) { 
+        self.ofs[1] += 0.01;
+        if self.ofs[1] >= 1.0 { self.ofs[1] = 0.0 }
+    }
+
+    pub fn down(&mut self) { 
+        self.ofs[1] -= 0.01;
+        if self.ofs[1] <= 0.0 { self.ofs[1] = 1.0 }
+    }
+
+    pub fn left(&mut self) { 
+        self.ofs[0] -= 0.01;
+        if self.ofs[0] <= 0.0 { self.ofs[0] = 1.0 }
+    }
+
+    pub fn right(&mut self) { 
+        self.ofs[0] += 0.01;
+        if self.ofs[0] >= 1.0 { self.ofs[0] = 0.0 }
+    }
+
+    pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
+        jobs.push(RenderJob::UniformOffset(self.ofs));
+        jobs.push(RenderJob::DrawRect(render::Rect { x: -256, y: -256, w: 512, h: 512 }));
+    }
+}
+
+
 fn main() {
     // setup hardware
     println!("initializing display ...");
@@ -34,11 +67,12 @@ fn main() {
         .. Default::default()
     };
 
-    let mut renderer = RenderGroup::new(&display, &draw_params);
 
     // TODO: engine state block
+    let mut renderer = RenderGroup::new(&display, &draw_params);
     let mut controller =  Input::new();
     let mut render_jobs = vec![];
+    let mut block = ScrollyBox::new();
 
     // game clock
     let target_fps = Duration::from_millis(1000 / 60);
@@ -71,15 +105,15 @@ fn main() {
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
 
         // scroll square interior
-        // if controller.is_key_held(VKC::Up)    { square.up();    }
-        // if controller.is_key_held(VKC::Right) { square.right(); }
-        // if controller.is_key_held(VKC::Down)  { square.down();  }
-        // if controller.is_key_held(VKC::Left)  { square.left();  }
+        if controller.is_key_held(VKC::Up)    { block.up();    }
+        if controller.is_key_held(VKC::Right) { block.right(); }
+        if controller.is_key_held(VKC::Down)  { block.down();  }
+        if controller.is_key_held(VKC::Left)  { block.left();  }
 
         // draw the square to the rear framebuffer
         render_jobs.push(RenderJob::ClearDepth(1.0));
         render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
-        render_jobs.push(RenderJob::DrawRect(render::Rect { x: 0, y: 0, w: 512, h: 512 }));
+        block.draw(&mut render_jobs);
         renderer.draw(&render_jobs[..]);
 
         let dt = (Instant::now()).duration_since(frame_start);

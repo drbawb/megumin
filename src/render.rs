@@ -89,15 +89,18 @@ impl<'scn> RenderGroup<'scn> {
 
     pub fn draw(&mut self, draw_list: &[RenderJob]) {
          let mut frame = self.gpu.draw();
+         let mut ofs = [0.0, 0.0];
+
          for job in draw_list {
             match *job {
                 RenderJob::ClearDepth(depth)    => frame.clear_depth(depth),
                 RenderJob::ClearScreen(r,g,b,a) => frame.clear_color(r,g,b,a),
+                RenderJob::UniformOffset(uofs)  => ofs = uofs,
                 RenderJob::DrawRect(rect) => {
 
                     // rect bounds
-                    let x1 = rect.x; let x2 = rect.x + rect.w;
-                    let y1 = rect.y; let y2 = rect.y + rect.h;
+                    let x1 = rect.x; let x2 = rect.x + (rect.w as i32);
+                    let y1 = rect.y; let y2 = rect.y + (rect.h as i32);
 
                     let x1 = (x1 as f32) / SCREEN_W;
                     let x2 = (x2 as f32) / SCREEN_W;
@@ -117,7 +120,7 @@ impl<'scn> RenderGroup<'scn> {
 
                     let uniforms = uniform! {
                         tex:  &self.shader.blank_tex,
-                        tofs: [0.0f32, 0.0],
+                        tofs: ofs,
                     };
 
                     frame.draw(&self.shader.vbuf, 
@@ -138,7 +141,7 @@ impl<'scn> RenderGroup<'scn> {
 
 #[derive(Copy,Clone)]
 pub struct Rect {
-    pub x: u32, pub y: u32,
+    pub x: i32, pub y: i32,
     pub w: u32, pub h: u32,
 }
 
@@ -148,4 +151,5 @@ pub enum RenderJob {
     ClearDepth(f32),
     ClearScreen(f32, f32, f32, f32),
     DrawRect(Rect),
+    UniformOffset([f32; 2]),
 }
