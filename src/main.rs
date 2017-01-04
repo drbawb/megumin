@@ -4,17 +4,16 @@ extern crate rusttype;
 #[allow(dead_code)] mod input;
 #[allow(dead_code)] mod units;
 mod render;
-mod square; // TODO: dev mesh
 
 use std::time::{Duration, Instant};
 use std::thread;
 
-use glium::{DisplayBuild, Surface};
+use glium::DisplayBuild;
 use glium::glutin::{Event, ElementState, WindowBuilder};
 use glium::glutin::VirtualKeyCode as VKC;
 
 use input::Input;
-use square::Square;
+use render::{RenderGroup, RenderJob};
 
 fn main() {
     // setup hardware
@@ -35,9 +34,11 @@ fn main() {
         .. Default::default()
     };
 
+    let mut renderer = RenderGroup::new(&display, &draw_params);
+
     // TODO: engine state block
     let mut controller =  Input::new();
-    let mut square = Square::new(&display);
+    let mut render_jobs = vec![];
 
     // game clock
     let target_fps = Duration::from_millis(1000 / 60);
@@ -45,10 +46,12 @@ fn main() {
 
     println!("starting game loop ...");
     'runloop: loop {
+        // top of frame
         frame_start = Instant::now();
+        controller.begin_new_frame();
+        render_jobs.clear();
 
         // handle input
-        controller.begin_new_frame();
         for ev in display.poll_events() {
             match ev {
                 Event::Closed => break 'runloop,
@@ -68,16 +71,16 @@ fn main() {
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
 
         // scroll square interior
-        if controller.is_key_held(VKC::Up)    { square.up();    }
-        if controller.is_key_held(VKC::Right) { square.right(); }
-        if controller.is_key_held(VKC::Down)  { square.down();  }
-        if controller.is_key_held(VKC::Left)  { square.left();  }
+        // if controller.is_key_held(VKC::Up)    { square.up();    }
+        // if controller.is_key_held(VKC::Right) { square.right(); }
+        // if controller.is_key_held(VKC::Down)  { square.down();  }
+        // if controller.is_key_held(VKC::Left)  { square.left();  }
 
         // draw the square to the rear framebuffer
-        let mut frame = display.draw();
-        frame.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
-        square.draw(&mut frame, &draw_params);
-        frame.finish().expect("could not close frame");
+        render_jobs.push(RenderJob::ClearDepth(1.0));
+        render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
+        render_jobs.push(RenderJob::DrawRect(render::Rect { x: 0, y: 0, w: 512, h: 512 }));
+        renderer.draw(&render_jobs[..]);
 
         let dt = (Instant::now()).duration_since(frame_start);
         if dt > target_fps { println!("missed frame"); continue }
