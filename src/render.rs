@@ -75,7 +75,7 @@ fn gen_checkers(buf: &mut Vec<Vec<(u8,u8,u8,u8)>>) {
 /// These are ultimately used to render a single scene by operating on a list
 /// of render jobs in an order decided by the renderer.
 pub struct RenderGroup<'scn> {
-    _gpu:    &'scn GlutinFacade,
+    gpu:    &'scn GlutinFacade,
     config:  &'scn DrawParameters<'scn>,
     shader:  BasicShader,
 }
@@ -86,7 +86,7 @@ impl<'scn> RenderGroup<'scn> {
 
         RenderGroup {
             config: draw_params,
-            _gpu:   display,
+            gpu:   display,
             shader: gpu_program,
         }
     }
@@ -101,13 +101,15 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::DrawRect(rect) => {
 
                     // rect bounds
-                    let x1 = rect.x; let x2 = rect.x + (rect.w as i32);
-                    let y1 = rect.y; let y2 = rect.y + (rect.h as i32);
+                    let x1 = rect.x; let x2 = rect.x + (rect.w);
+                    let y1 = rect.y; let y2 = rect.y + (rect.h);
 
-                    let x1 = (x1 as f32) / SCREEN_W;
-                    let x2 = (x2 as f32) / SCREEN_W;
-                    let y1 = (y1 as f32) / SCREEN_H;
-                    let y2 = (y2 as f32) / SCREEN_W;
+                    // TODO: cpu aspect correction, fix w/ projection uniform
+                    let (screen_w, screen_h) = self.gpu.get_framebuffer_dimensions();
+                    let x1 = (x1 as f32) / (screen_w as f32);
+                    let x2 = (x2 as f32) / (screen_w as f32);
+                    let y1 = (y1 as f32) / (screen_h as f32);
+                    let y2 = (y2 as f32) / (screen_h as f32);
 
                     { // render a quad into the vertex buffer
                         self.shader.vbuf.invalidate();
@@ -142,7 +144,7 @@ impl<'scn> RenderGroup<'scn> {
 #[derive(Copy,Clone)]
 pub struct Rect {
     pub x: i32, pub y: i32,
-    pub w: u32, pub h: u32,
+    pub w: i32, pub h: i32,
 }
 
 
