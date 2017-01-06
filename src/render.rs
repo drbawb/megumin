@@ -6,6 +6,10 @@ use glium::index::{IndexBuffer, PrimitiveType};
 
 use units::drawing::V2;
 
+// NOTE: these are not necessarily hard limits, though exceeding them
+//       will at best cause reallocation on the heap, at worst this will
+//       blow up OpenGL.
+
 // renderer settings
 static MAX_RECTS: usize = 1000;
 static MAX_TEXTURES: usize = 128;
@@ -27,6 +31,13 @@ struct BasicShader {
 
 impl BasicShader {
     pub fn new<F: Facade>(display: &F) -> Self {
+        // generates a default pink/black checkered texture
+        //
+        // this is used by the renderer whenever a texture is requested
+        // by the engine, but not available ...
+        // (e.g: async load has not finished, file not found, resource loader
+        //  ran out of memory, etc.)
+        //
         let mut buf = vec![vec![(0u8, 0u8, 0u8, 0u8); 256]; 256];
         gen_checkers(&mut buf);
 
@@ -35,7 +46,6 @@ impl BasicShader {
 
         let program = Program::from_source(display, SHD_SQUARE_VTX, SHD_SQUARE_FRG, None)
                               .expect("could not load basic shader");
-
 
         let verts_buffer = VertexBuffer::empty_dynamic(display, (MAX_RECTS * 4))
                                         .expect("could not allocate empty vertex buffer");
