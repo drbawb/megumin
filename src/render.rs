@@ -2,7 +2,7 @@ use glium::{Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::Facade;
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::draw_parameters::DrawParameters;
-use glium::index::{NoIndices, PrimitiveType};
+use glium::index::{IndexBuffer, PrimitiveType};
 
 use units::drawing::V2;
 
@@ -20,7 +20,7 @@ static SHD_SQUARE_FRG: &'static str = include_str!("../assets/shaders/square.gls
 /// - UV coords are passed to the fragment shader for simple 2D texturing.
 struct BasicShader {
     pub vbuf: VertexBuffer<V2>,
-    pub ibuf: NoIndices,
+    pub ibuf: IndexBuffer<u16>,
     pub blank_tex: Texture2d,
     pub rect_prog: Program,
 }
@@ -37,12 +37,15 @@ impl BasicShader {
                               .expect("could not load basic shader");
 
 
-        let verts_buffer = VertexBuffer::empty_dynamic(display, (MAX_RECTS * 6))
+        let verts_buffer = VertexBuffer::empty_dynamic(display, (MAX_RECTS * 4))
                                         .expect("could not allocate empty vertex buffer");
+
+        let index_buffer = IndexBuffer::empty_dynamic(display, PrimitiveType::TrianglesList, (MAX_RECTS * 6))
+                                       .expect("could not allocate empty index buffer");
 
         BasicShader {
             vbuf: verts_buffer,
-            ibuf: NoIndices(PrimitiveType::TrianglesList),
+            ibuf: index_buffer,
             blank_tex: texture,
             rect_prog: program,
         }
@@ -101,6 +104,7 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::ClearScreen(r,g,b,a) => frame.clear_color(r,g,b,a),
                 RenderJob::UniformOffset(uofs)  => ofs = uofs,
                 RenderJob::DrawRect(rect) => {
+                    // draws a fixed size rectangle which is aspect corrected to the screen
 
                     // TODO: ugly casts ...
                     // give the world coordinate system some thought and define appropriate
@@ -117,15 +121,22 @@ impl<'scn> RenderGroup<'scn> {
                     let y1 = (y1 as f32) / (screen_h as f32);
                     let y2 = (y2 as f32) / (screen_h as f32);
 
+                    // TODO: better way to do this? memmove, etc?
                     { // render a quad into the vertex buffer
+                        self.shader.ibuf.invalidate();
                         self.shader.vbuf.invalidate();
-                        let mut writer = self.shader.vbuf.map_write();
-                        writer.set(0, V2 { pos: [x2, y2], uv: [ 1.0,  1.0] });
-                        writer.set(1, V2 { pos: [x1, y2], uv: [ 0.0,  1.0] });
-                        writer.set(2, V2 { pos: [x1, y1], uv: [ 0.0,  0.0] });
-                        writer.set(3, V2 { pos: [x2, y2], uv: [ 1.0,  1.0] });
-                        writer.set(4, V2 { pos: [x2, y1], uv: [ 1.0,  0.0] });
-                        writer.set(5, V2 { pos: [x1, y1], uv: [ 0.0,  0.0] });
+
+                        let ibuf = self.shader.ibuf.slice_mut(0..6).unwrap();
+                        let vbuf = self.shader.vbuf.slice_mut(0..4).unwrap();
+
+                        vbuf.write(&[
+                            V2 { pos: [x1, y1], uv: [ 0.0,  0.0] },
+                            V2 { pos: [x1, y2], uv: [ 0.0,  1.0] },
+                            V2 { pos: [x2, y1], uv: [ 1.0,  0.0] },
+                            V2 { pos: [x2, y2], uv: [ 1.0,  1.0] },
+                        ]);
+
+                        ibuf.write(&[0,1,3, 0,2,3]);
                     }
 
                     let uniforms = uniform! {
@@ -142,6 +153,8 @@ impl<'scn> RenderGroup<'scn> {
                 },
 
                 RenderJob::TexRect(texture_id, x, y, w, h) => {
+                    // draws a normalized rectangle w/ a texture 
+                    
                     // TODO: translate normalized coordinates (0=>1) to unit square
                     // f(x) = (2x) - 1
                     // f(0) = (2*0) - 1 = -1
@@ -162,14 +175,20 @@ impl<'scn> RenderGroup<'scn> {
                     };
 
                     { // render a quad into the vertex buffer
+                        self.shader.ibuf.invalidate();
                         self.shader.vbuf.invalidate();
-                        let mut writer = self.shader.vbuf.map_write();
-                        writer.set(0, V2 { pos: [x2, y2], uv: [ 1.0,  1.0] });
-                        writer.set(1, V2 { pos: [x1, y2], uv: [ 0.0,  1.0] });
-                        writer.set(2, V2 { pos: [x1, y1], uv: [ 0.0,  0.0] });
-                        writer.set(3, V2 { pos: [x2, y2], uv: [ 1.0,  1.0] });
-                        writer.set(4, V2 { pos: [x2, y1], uv: [ 1.0,  0.0] });
-                        writer.set(5, V2 { pos: [x1, y1], uv: [ 0.0,  0.0] });
+
+                        let ibuf = self.shader.ibuf.slice_mut(0..6).unwrap();
+                        let vbuf = self.shader.vbuf.slice_mut(0..4).unwrap();
+
+                        vbuf.write(&[
+                            V2 { pos: [x1, y1], uv: [ 0.0,  0.0] },
+                            V2 { pos: [x1, y2], uv: [ 0.0,  1.0] },
+                            V2 { pos: [x2, y1], uv: [ 1.0,  0.0] },
+                            V2 { pos: [x2, y2], uv: [ 1.0,  1.0] },
+                        ]);
+
+                        ibuf.write(&[0,1,3, 0,2,3]);
                     }
 
                     frame.draw(&self.shader.vbuf, 
