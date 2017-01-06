@@ -3,6 +3,7 @@ extern crate rusttype;
 
 #[allow(dead_code)] mod input;
 #[allow(dead_code)] mod units;
+mod entities;
 mod render;
 
 use std::time::{Duration, Instant};
@@ -10,47 +11,12 @@ use std::thread;
 
 // TODO: move window construction to render module?
 use glium::DisplayBuild;
-use glium::glutin::{Event, ElementState, WindowBuilder};
-use glium::glutin::VirtualKeyCode as VKC;
+use glium::glutin::{Event, ElementState, VirtualKeyCode as VKC, WindowBuilder};
 
 use input::Input;
 use render::{RenderGroup, RenderJob};
 
 static TARGET_FPS_MS: u64 = 1000 / 120;
-
-enum Direction { Up, Right, Down, Left }
-
-fn dt2ms(dt: Duration) -> u64 {
-    (dt.as_secs() * 1000) + (dt.subsec_nanos() as u64 / 1_000_000)
-}
-
-struct ScrollyBox { ofs: [f32; 2] }
-impl ScrollyBox {
-    pub fn new() -> Self {
-        ScrollyBox { ofs: [0.0, 0.0] }
-    }
-
-    pub fn update(&mut self, dt: Duration, dir: Direction) {
-        let scroll_v = 0.001; // (.001px * 1000ms) = 1 texture height / sec.
-        let (vx, vy) = match dir {
-            Direction::Up    => (      0.0,  scroll_v),
-            Direction::Down  => (      0.0, -scroll_v),
-            Direction::Left  => (-scroll_v,       0.0),
-            Direction::Right => ( scroll_v,       0.0),
-        };
-
-        // TODO: real vectors ...
-        // integrate velocity over time => offset distance
-        self.ofs[0] += vx * dt2ms(dt) as f32;
-        self.ofs[1] += vy * dt2ms(dt) as f32;
-    }
-
-    pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
-        jobs.push(RenderJob::UniformOffset(self.ofs));
-        jobs.push(RenderJob::DrawRect(render::Rect { x: -256, y: -256, w: 512, h: 512 }));
-    }
-}
-
 
 fn main() {
     // setup hardware
@@ -73,13 +39,51 @@ fn main() {
 
 
     // TODO: engine state block
-    let mut renderer = RenderGroup::new(&display, &draw_params);
-    let mut controller =  Input::new();
+    let mut controller  =  Input::new();
+    let mut renderer    = RenderGroup::new(&display, &draw_params);
     let mut render_jobs = vec![];
-    let mut block = ScrollyBox::new();
+   
+    // TODO: some sort of entity buffer
+    let mut block = entities::ScrollyBox::new();
+
+    // the runloop is a fairly straightforward game loop, it spends time performing
+    // three major functions:
+    //
+    // - buffering input
+    // - integrating entities over time (elapsed since last frame)
+    // - rendering active entities
+    //
+    // at the top of each frame we compute the time elapsed since the last
+    // iteration of the runloop. if the game is running smoothly this should
+    // be approximately `TARGET_FPS_MS` milliseconds
+    //
+    // input is buffered into a series of tables. these tables are optionally
+    // used by entities to determine their behavior for the next simulation step.
+    //
+    // this delta is used to drive the simulation step at a constant rate in
+    // terms of milliseconds elapsed. this value will be higher if the runloop
+    // is running behind. physics should therefore be in a coherent state wrt
+    // the computer's real-time clock.
+    //
+    // after each active entitiy has been simulated we begin rendering the
+    // world. this is done by grabbing the backbuffer, clearing it, and
+    // allowing each entity to mutate the render queue serially.
+    //
+    // there is probably potential for threading & perf wins here, not sure.
+    // (possibly need to designate "layers" (fg/mg/bg) as sync points
+    //  thus sprites would be drawn in a potentially consistent order.)
+    //
+    //  the renderer is then instructed to commit the render queue to the
+    //  backbuffer. the details of this are a mystery.
+    //
+    // TODO: cap the `frame_dt` to a fixed timestep to allow for easier
+    // debugging, etc.
+    //
+    // TODO: display building config. (vsync, resolution?, windowed?, etc.)
+    //
 
     // game clock
-    let target_fps = Duration::from_millis(TARGET_FPS_MS);
+    let target_fps      = Duration::from_millis(TARGET_FPS_MS);
     let mut frame_start = Instant::now();
 
     println!("starting game loop ...");
@@ -90,7 +94,7 @@ fn main() {
         controller.begin_new_frame();
         render_jobs.clear();
 
-        // handle input
+        // store frame inputs in buffer
         for ev in display.poll_events() {
             match ev {
                 Event::Closed => break 'runloop,
@@ -106,14 +110,9 @@ fn main() {
             }
         }
 
-        // exit immediately on escape
+        // process input buffer
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
-
-        // scroll square interior
-        if controller.is_key_held(VKC::Up)    { block.update(frame_dt, Direction::Up)    }
-        if controller.is_key_held(VKC::Right) { block.update(frame_dt, Direction::Right) }
-        if controller.is_key_held(VKC::Down)  { block.update(frame_dt, Direction::Down)  }
-        if controller.is_key_held(VKC::Left)  { block.update(frame_dt, Direction::Left)  }
+        block.update(&controller, frame_dt);
 
         // prepare render queue
         render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
@@ -125,7 +124,7 @@ fn main() {
         renderer.draw(&render_jobs[..], &mut frame);
         frame.finish().unwrap();
 
-        // handle timing
+        // handle frame timing
         let dt = (Instant::now()).duration_since(frame_start);
         if dt > target_fps { println!("missed frame {:?}", dt); continue }
         let draw_time = target_fps - dt;

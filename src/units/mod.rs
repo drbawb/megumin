@@ -7,6 +7,8 @@ pub use units::physics::{Degrees,AngularVelocity};
 
 pub use units::physics::{Frame,Fps};
 
+pub use units::physics::dt2ms;
+
 // Load sub-libraries
 pub mod drawing;
 pub mod physics;

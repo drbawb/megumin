@@ -100,6 +100,10 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::UniformOffset(uofs)  => ofs = uofs,
                 RenderJob::DrawRect(rect) => {
 
+                    // TODO: ugly casts ...
+                    // give the world coordinate system some thought and define appropriate
+                    // types in the units lib for this engine ...
+                    
                     // rect bounds
                     let x1 = rect.x; let x2 = rect.x + (rect.w);
                     let y1 = rect.y; let y2 = rect.y + (rect.h);

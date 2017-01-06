@@ -1,6 +1,11 @@
 use std::ops::{Deref, Neg, Add, Sub, Mul, Div};
+use std::time::Duration;
 
 use super::drawing::{Game}; 
+
+pub fn dt2ms(dt: Duration) -> u64 {
+    (dt.as_secs() * 1000) + (dt.subsec_nanos() as u64 / 1_000_000)
+}
 
 /// Millis represents a length of time in milliseconds as a signed integer.
 /// (NOTE: As `Millis` supports basic arithmetic: "negative time" is possible.)
