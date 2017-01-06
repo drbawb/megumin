@@ -23,6 +23,7 @@ fn main() {
     println!("initializing display ...");
     let display = WindowBuilder::new()
                                 .with_depth_buffer(24)
+                                .with_title("megumin")
                                 .build_glium()
                                 .expect("could not open window");
 
@@ -45,6 +46,7 @@ fn main() {
    
     // TODO: some sort of entity buffer
     let mut block = entities::ScrollyBox::new();
+    let map       = entities::TileMap::new(&mut renderer);
 
     // the runloop is a fairly straightforward game loop, it spends time performing
     // three major functions:
@@ -118,6 +120,7 @@ fn main() {
         render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
         render_jobs.push(RenderJob::ClearDepth(1.0));
         block.draw(&mut render_jobs);
+        map.draw(&mut render_jobs);
 
         // draw queue to back buffer
         let mut frame = display.draw();

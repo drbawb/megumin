@@ -7,9 +7,8 @@ use glium::index::{NoIndices, PrimitiveType};
 use units::drawing::V2;
 
 // renderer settings
-static SCREEN_W: f32 = 1024.0;
-static SCREEN_H: f32 =  768.0;
 static MAX_RECTS: usize = 1000;
+static MAX_TEXTURES: usize = 128;
 
 // shader etc ...
 static SHD_SQUARE_VTX: &'static str = include_str!("../assets/shaders/square.glsv");
@@ -70,14 +69,15 @@ fn gen_checkers(buf: &mut Vec<Vec<(u8,u8,u8,u8)>>) {
 
 /// Glutin renderer implementation
 /// Stores a reference to the glutin window along w/ a basic shader
-/// program and GL parameters.
+/// program and GL parameters. This rendergroup is only valid in the
+/// thread which owns this GPU context, and must not outlive this context.
 ///
-/// These are ultimately used to render a single scene by operating on a list
-/// of render jobs in an order decided by the renderer.
 pub struct RenderGroup<'scn> {
     gpu:    &'scn GlutinFacade,
     config:  &'scn DrawParameters<'scn>,
     shader:  BasicShader,
+
+    textures: Vec<Texture2d>,
 }
 
 impl<'scn> RenderGroup<'scn> {
@@ -88,6 +88,8 @@ impl<'scn> RenderGroup<'scn> {
             config: draw_params,
             gpu:   display,
             shader: gpu_program,
+
+            textures: Vec::with_capacity(MAX_TEXTURES),
         }
     }
 
@@ -138,8 +140,61 @@ impl<'scn> RenderGroup<'scn> {
                                self.config).expect("could not draw tri");
 
                 },
+
+                RenderJob::TexRect(texture_id, x, y, w, h) => {
+                    // TODO: translate normalized coordinates (0=>1) to unit square
+                    // f(x) = (2x) - 1
+                    // f(0) = (2*0) - 1 = -1
+                    // f(1) = (2*1) - 1 =  1
+                    // (grows right, e.g: +)
+                    //
+                    // f(y) = (-2x) + 1
+                    // f(0) = (-2*0) + 1 =  1
+                    // f(1) = (-2*1) + 1 = -1
+                    // (grows down, e.g: -)
+                    // 
+                    let x1 = (x *  2.0) - 1.0; let x2 = x1 + (w * 2.0);
+                    let y1 = (y * -2.0) + 1.0; let y2 = y1 - (h * 2.0);
+
+                    let uniforms = uniform! {
+                        tex:  &self.textures[texture_id],
+                        tofs: [0.0f32, 0.0],
+                    };
+
+                    { // render a quad into the vertex buffer
+                        self.shader.vbuf.invalidate();
+                        let mut writer = self.shader.vbuf.map_write();
+                        writer.set(0, V2 { pos: [x2, y2], uv: [ 1.0,  1.0] });
+                        writer.set(1, V2 { pos: [x1, y2], uv: [ 0.0,  1.0] });
+                        writer.set(2, V2 { pos: [x1, y1], uv: [ 0.0,  0.0] });
+                        writer.set(3, V2 { pos: [x2, y2], uv: [ 1.0,  1.0] });
+                        writer.set(4, V2 { pos: [x2, y1], uv: [ 1.0,  0.0] });
+                        writer.set(5, V2 { pos: [x1, y1], uv: [ 0.0,  0.0] });
+                    }
+
+                    frame.draw(&self.shader.vbuf, 
+                               &self.shader.ibuf, 
+                               &self.shader.rect_prog, 
+                               &uniforms, 
+                               self.config).expect("could not draw tri");
+
+                },
             }
         }       
+    }
+
+    // TODO: generic source? slice? etc.
+    // TODO: enumerated color formats?
+    // TODO: return result type
+    /// Stores a 2D pixel buffer into a static texture and returns an
+    /// integer handle to it which can be used to instruct the renderer
+    /// to bank-in that texture for a program pass.
+    pub fn store_texture(&mut self, buf: Vec<Vec<(u8,u8,u8,u8)>>) -> usize {
+        let next_idx = self.textures.len();
+        let texture  = Texture2d::new(self.gpu, buf)
+                                 .expect("could not load userspace texture");
+
+        self.textures.push(texture); next_idx
     }
 }
 
@@ -151,10 +206,10 @@ pub struct Rect {
     pub w: i32, pub h: i32,
 }
 
-
 pub enum RenderJob {
     ClearDepth(f32),
     ClearScreen(f32, f32, f32, f32),
     DrawRect(Rect),
     UniformOffset([f32; 2]), // TODO: grosssssss... state in my renderer?
+    TexRect(usize, f32, f32, f32, f32),
 }
