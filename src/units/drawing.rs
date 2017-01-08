@@ -12,8 +12,8 @@ pub struct V2 { pub pos: [f32; 2], pub uv: [f32; 2] }
 implement_vertex!(V2, pos, uv);
 
 #[derive(Copy, Clone, Debug)]
-pub struct V3 { pub pos: [f32; 3] }
-implement_vertex!(V3, pos);
+pub struct V3 { pub pos: [f32; 3], pub uv: [f32; 2] }
+implement_vertex!(V3, pos, uv);
 
 /// A `Game` unit represents a density-independent distance in pixels.
 /// Converting a `Game` to pixels will round it to the nearest coordinate,

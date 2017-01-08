@@ -1,5 +1,6 @@
 #[macro_use] extern crate glium;
 extern crate image;
+extern crate rand;
 extern crate rusttype;
 
 #[allow(dead_code)] mod input;
@@ -46,8 +47,9 @@ fn main() {
     let mut render_jobs = vec![];
    
     // TODO: some sort of entity buffer
-    let mut block = entities::ScrollyBox::new();
-    let map       = entities::TileMap::new(&mut renderer);
+    let mut block  = entities::ScrollyBox::new();
+    let mut map    = entities::TileMap::new(&mut renderer);
+    let mut player = entities::Sprite::new(&mut renderer);
 
     // the runloop is a fairly straightforward game loop, it spends time performing
     // three major functions:
@@ -116,12 +118,15 @@ fn main() {
         // process input buffer
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
         block.update(&controller, frame_dt);
+        player.update(&controller, frame_dt);
+        map.update(&controller, frame_dt);
 
+        // TODO: use depth buffer instead of relying on draw order
         // prepare render queue
         render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
         render_jobs.push(RenderJob::ClearDepth(1.0));
-        block.draw(&mut render_jobs);
         map.draw(&mut render_jobs);
+        player.draw(&mut render_jobs);
 
         // draw queue to back buffer
         let mut frame = display.draw();
