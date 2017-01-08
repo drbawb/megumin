@@ -1,10 +1,14 @@
+use std::fs::File;
+use std::io::BufReader;
+
 use glium::{Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::Facade;
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::draw_parameters::DrawParameters;
 use glium::index::{IndexBuffer, PrimitiveType};
+use image::{self, GenericImage, ImageFormat};
 
-use units::drawing::V2;
+use units::drawing::V3;
 
 // NOTE: these are not necessarily hard limits, though exceeding them
 //       will at best cause reallocation on the heap, at worst this will
@@ -23,7 +27,7 @@ static SHD_SQUARE_FRG: &'static str = include_str!("../assets/shaders/square.gls
 /// - the verts are interleaved w/ coords in UV space
 /// - UV coords are passed to the fragment shader for simple 2D texturing.
 struct BasicShader {
-    pub vbuf: VertexBuffer<V2>,
+    pub vbuf: VertexBuffer<V3>,
     pub ibuf: IndexBuffer<u16>,
     pub blank_tex: Texture2d,
     pub rect_prog: Program,
@@ -140,10 +144,10 @@ impl<'scn> RenderGroup<'scn> {
                         let vbuf = self.shader.vbuf.slice_mut(0..4).unwrap();
 
                         vbuf.write(&[
-                            V2 { pos: [x1, y1], uv: [ 0.0,  0.0] },
-                            V2 { pos: [x1, y2], uv: [ 0.0,  1.0] },
-                            V2 { pos: [x2, y1], uv: [ 1.0,  0.0] },
-                            V2 { pos: [x2, y2], uv: [ 1.0,  1.0] },
+                            V3 { pos: [x1, y1, 1.0], uv: [ 0.0,  0.0] },
+                            V3 { pos: [x1, y2, 1.0], uv: [ 0.0,  1.0] },
+                            V3 { pos: [x2, y1, 1.0], uv: [ 1.0,  0.0] },
+                            V3 { pos: [x2, y2, 1.0], uv: [ 1.0,  1.0] },
                         ]);
 
                         ibuf.write(&[0,1,3, 0,2,3]);
@@ -162,7 +166,7 @@ impl<'scn> RenderGroup<'scn> {
 
                 },
 
-                RenderJob::TexRect(texture_id, x, y, w, h) => {
+                RenderJob::TexRect(texture_id, x, y, z, w, h) => {
                     // draws a normalized rectangle w/ a texture 
                     
                     // TODO: translate normalized coordinates (0=>1) to unit square
@@ -192,10 +196,10 @@ impl<'scn> RenderGroup<'scn> {
                         let vbuf = self.shader.vbuf.slice_mut(0..4).unwrap();
 
                         vbuf.write(&[
-                            V2 { pos: [x1, y1], uv: [ 0.0,  0.0] },
-                            V2 { pos: [x1, y2], uv: [ 0.0,  1.0] },
-                            V2 { pos: [x2, y1], uv: [ 1.0,  0.0] },
-                            V2 { pos: [x2, y2], uv: [ 1.0,  1.0] },
+                            V3 { pos: [x1, y1, z], uv: [ 0.0,  0.0] },
+                            V3 { pos: [x1, y2, z], uv: [ 0.0,  1.0] },
+                            V3 { pos: [x2, y1, z], uv: [ 1.0,  0.0] },
+                            V3 { pos: [x2, y2, z], uv: [ 1.0,  1.0] },
                         ]);
 
                         ibuf.write(&[0,1,3, 0,2,3]);
@@ -210,6 +214,36 @@ impl<'scn> RenderGroup<'scn> {
                 },
             }
         }       
+    }
+
+    pub fn load_tga(&mut self, path: &str) -> usize {
+        // load the TGA and flip it so the coordinate system matches GL
+        let file    = File::open(path).expect("could not read sprite");
+        let buf_io  = BufReader::new(file);
+        let tga_buf = image::load(buf_io, ImageFormat::TGA)
+                            .expect("could not parse TGA file")
+                            .flipv();
+
+        // allocate CPU-side storage for the image
+        let (dim_x, dim_y) = (tga_buf.width() as usize, tga_buf.height() as usize);
+        let mut buf = vec![vec![(0u8,0u8,0u8,0u8); dim_x]; dim_y];
+        let mut pixels = tga_buf.as_rgba8().unwrap().pixels();
+
+
+        // copy the image into CPU-side buffer
+        for y in 0..dim_y {
+            for x in 0..dim_x {
+                let pixel = pixels.next().unwrap();
+                let r = pixel[0];
+                let g = pixel[1];
+                let b = pixel[2];
+                let a = pixel[3];
+
+                buf[y][x] = (r,g,b,a);
+            }
+        }
+
+        self.store_texture(buf)
     }
 
     // TODO: generic source? slice? etc.
@@ -240,5 +274,5 @@ pub enum RenderJob {
     ClearScreen(f32, f32, f32, f32),
     DrawRect(Rect),
     UniformOffset([f32; 2]), // TODO: grosssssss... state in my renderer?
-    TexRect(usize, f32, f32, f32, f32),
+    TexRect(usize, f32, f32, f32, f32, f32),
 }
