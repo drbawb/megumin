@@ -5,4 +5,5 @@ authors = ["Robbie Straw <drbawb@fatalsyntax.com>"]
 
 [dependencies]
 glium = "*"
+image = "*"
 rusttype = "*"

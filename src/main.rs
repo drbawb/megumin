@@ -1,4 +1,5 @@
 #[macro_use] extern crate glium;
+extern crate image;
 extern crate rusttype;
 
 #[allow(dead_code)] mod input;
