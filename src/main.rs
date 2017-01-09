@@ -47,7 +47,6 @@ fn main() {
     let mut render_jobs = vec![];
    
     // TODO: some sort of entity buffer
-    let mut block  = entities::ScrollyBox::new();
     let mut map    = entities::TileMap::new(&mut renderer);
     let mut player = entities::Sprite::new(&mut renderer);
 
@@ -117,9 +116,8 @@ fn main() {
 
         // process input buffer
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
-        block.update(&controller, frame_dt);
         player.update(&controller, frame_dt);
-        map.update(&controller, frame_dt);
+        map.update(&controller, frame_dt, player.velocity());
 
         // TODO: use depth buffer instead of relying on draw order
         // prepare render queue

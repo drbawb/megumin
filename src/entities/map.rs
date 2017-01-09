@@ -32,34 +32,21 @@ impl TileMap {
         }
     }
 
-    pub fn update(&mut self, controller: &Input, dt: Duration) {
-             if controller.is_key_held(VKC::W) { self.integrate(dt, Direction::Up)    }
-        else if controller.is_key_held(VKC::A) { self.integrate(dt, Direction::Left)  }
-        else if controller.is_key_held(VKC::S) { self.integrate(dt, Direction::Down)  }
-        else if controller.is_key_held(VKC::D) { self.integrate(dt, Direction::Right) }
-        else if controller.is_key_held(VKC::Q) { self.rotate(dt, Direction::Left)  }
-        else if controller.is_key_held(VKC::E) { self.rotate(dt, Direction::Right) }
+    pub fn update(&mut self, controller: &Input, dt: Duration, dv: (f32,f32)) {
+        self.integrate(dt, dv);
+       //       if controller.is_key_held(VKC::W) { self.integrate(dt, dv, Direction::Up)    }
+       //  else if controller.is_key_held(VKC::A) { self.integrate(dt, dv, Direction::Left)  }
+       //  else if controller.is_key_held(VKC::S) { self.integrate(dt, dv, Direction::Down)  }
+       //  else if controller.is_key_held(VKC::D) { self.integrate(dt, dv, Direction::Right) }
+       if controller.is_key_held(VKC::Q) { self.rotate(dt, Direction::Left)  }
+       if controller.is_key_held(VKC::E) { self.rotate(dt, Direction::Right) }
     }
 
-    fn integrate(&mut self, dt: Duration, dir: Direction) {
-        let (vx, vy) = match dir {
-            Direction::Up    => (      0.0, -SCROLL_V),
-            Direction::Down  => (      0.0,  SCROLL_V),
-            Direction::Left  => (-SCROLL_V,       0.0),
-            Direction::Right => ( SCROLL_V,       0.0),
-        };
-
+    fn integrate(&mut self, dt: Duration, dv: (f32,f32)) {
         // TODO: real vectors ...
         // integrate velocity over time => offset distance
-        self.ofs_x += vx * dt2ms(dt) as f32;
-        self.ofs_y += vy * dt2ms(dt) as f32;
-
-        // TODO: wrap offset into unit square
-        // if self.ofs_x >=  1.0 { self.ofs_x = -1.0 }
-        // if self.ofs_x <= -1.0 { self.ofs_x =  1.0 }
-        // if self.ofs_y >=  1.0 { self.ofs_y = -1.0 }
-        // if self.ofs_y <= -1.0 { self.ofs_y =  1.0 }
-
+        self.ofs_x += -dv.0 * dt2ms(dt) as f32;
+        self.ofs_y += -dv.1 * dt2ms(dt) as f32;
     }
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {
@@ -76,7 +63,7 @@ impl TileMap {
         // TODO: normalized coords
         let (w,h) = (1.0, 1.0);
         jobs.push(RenderJob::UniformOffset([self.ofs_x, self.ofs_y]));
-        jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
+        // jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
         jobs.push(RenderJob::TexRect(self.stars, 0.0, 0.0, 0.0, w, h));
         jobs.push(RenderJob::ResetUniforms());
     }
