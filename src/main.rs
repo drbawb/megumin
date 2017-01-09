@@ -93,10 +93,14 @@ fn main() {
     println!("starting game loop ...");
     'runloop: loop {
         // top of frame
-        let frame_dt = Instant::now() - frame_start;
-        frame_start = Instant::now();
-        controller.begin_new_frame();
-        render_jobs.clear();
+        // TODO: clean up the clock etc.
+        // TODO: conditionally clear render queue? (e.g: have "static" render jobs?)
+        //
+        let frame_dt = Instant::now() - frame_start; // rtc since last frame
+        frame_start = Instant::now();                // reset game clock
+        controller.begin_new_frame();                // reset input buffer
+        render_jobs.clear();                         // clear render queue
+
 
         // store frame inputs in buffer
         for ev in display.poll_events() {

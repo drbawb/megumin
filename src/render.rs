@@ -121,62 +121,6 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::UniformOffset(uofs)  => ofs = uofs,
                 RenderJob::UniformRotate(urot)  => rot = urot,
                 RenderJob::ResetUniforms        => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
-                RenderJob::DrawRect(rect) => {
-                    // draws a fixed size rectangle which is aspect corrected to the screen
-
-                    // TODO: ugly casts ...
-                    // give the world coordinate system some thought and define appropriate
-                    // types in the units lib for this engine ...
-                    
-                    // rect bounds
-                    let x1 = rect.x; let x2 = rect.x + (rect.w);
-                    let y1 = rect.y; let y2 = rect.y + (rect.h);
-
-                    // TODO: cpu aspect correction, fix w/ projection uniform
-                    let (screen_w, screen_h) = self.gpu.get_framebuffer_dimensions();
-                    let x1 = (x1 as f32) / (screen_w as f32);
-                    let x2 = (x2 as f32) / (screen_w as f32);
-                    let y1 = (y1 as f32) / (screen_h as f32);
-                    let y2 = (y2 as f32) / (screen_h as f32);
-
-                    // TODO: better way to do this? memmove, etc?
-                    { // render a quad into the vertex buffer
-                        self.shader.ibuf.invalidate();
-                        self.shader.vbuf.invalidate();
-
-                        let ibuf = self.shader.ibuf.slice_mut(0..6).unwrap();
-                        let vbuf = self.shader.vbuf.slice_mut(0..4).unwrap();
-
-                        vbuf.write(&[
-                            V3 { pos: [x1, y1, 1.0], uv: [ 0.0,  0.0] },
-                            V3 { pos: [x1, y2, 1.0], uv: [ 0.0,  1.0] },
-                            V3 { pos: [x2, y1, 1.0], uv: [ 1.0,  0.0] },
-                            V3 { pos: [x2, y2, 1.0], uv: [ 1.0,  1.0] },
-                        ]);
-
-                        ibuf.write(&[0,1,3, 0,2,3]);
-                    }
-
-
-                    let rot = rot[0];
-                    let mat = [[ rot.cos(), -rot.sin(), 0.0, 0.0],
-                               [ rot.sin(),  rot.cos(), 0.0, 0.0],
-                               [       0.0,        0.0, 1.0, 0.0],
-                               [       0.0,        0.0, 0.0, 1.0f32]];
-
-                    let uniforms = uniform! {
-                        tex:  &self.shader.blank_tex,
-                        rot:  mat,
-                        tofs: ofs,
-                    };
-
-                    frame.draw(&self.shader.vbuf, 
-                               &self.shader.ibuf, 
-                               &self.shader.rect_prog, 
-                               &uniforms, 
-                               self.config).expect("could not draw tri");
-
-                },
 
                 RenderJob::TexRect(texture_id, x, y, z, w, h) => {
                     // draws a normalized rectangle w/ a texture 
@@ -291,9 +235,11 @@ pub struct Rect {
 pub enum RenderJob {
     ClearDepth(f32),
     ClearScreen(f32, f32, f32, f32),
-    DrawRect(Rect),
-    UniformOffset([f32; 2]), // TODO: grosssssss... state in my renderer?
-    UniformRotate([f32; 2]), // TODO: grosssssss... state in my renderer?
+
+    // TODO: grosssssss... state in my renderer?
+    UniformOffset([f32; 2]),
+    UniformRotate([f32; 2]),
     ResetUniforms,
+
     TexRect(usize, f32, f32, f32, f32, f32),
 }
