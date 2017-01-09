@@ -76,7 +76,7 @@ impl Sprite {
             None => {},
         }
 
-        jobs.push(RenderJob::ResetUniforms());
+        jobs.push(RenderJob::ResetUniforms);
     }
 
     pub fn velocity(&self) -> (f32, f32) { (self.vx, self.vy) }

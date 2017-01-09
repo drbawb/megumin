@@ -120,7 +120,7 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::ClearScreen(r,g,b,a) => frame.clear_color(r,g,b,a),
                 RenderJob::UniformOffset(uofs)  => ofs = uofs,
                 RenderJob::UniformRotate(urot)  => rot = urot,
-                RenderJob::ResetUniforms()      => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
+                RenderJob::ResetUniforms        => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
                 RenderJob::DrawRect(rect) => {
                     // draws a fixed size rectangle which is aspect corrected to the screen
 
@@ -294,6 +294,6 @@ pub enum RenderJob {
     DrawRect(Rect),
     UniformOffset([f32; 2]), // TODO: grosssssss... state in my renderer?
     UniformRotate([f32; 2]), // TODO: grosssssss... state in my renderer?
-    ResetUniforms(),
+    ResetUniforms,
     TexRect(usize, f32, f32, f32, f32, f32),
 }

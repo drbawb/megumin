@@ -65,7 +65,7 @@ impl TileMap {
         jobs.push(RenderJob::UniformOffset([self.ofs_x, self.ofs_y]));
         // jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
         jobs.push(RenderJob::TexRect(self.stars, 0.0, 0.0, 0.0, w, h));
-        jobs.push(RenderJob::ResetUniforms());
+        jobs.push(RenderJob::ResetUniforms);
     }
 }
 
