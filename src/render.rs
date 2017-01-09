@@ -112,11 +112,15 @@ impl<'scn> RenderGroup<'scn> {
 
     pub fn draw<S: Surface>(&mut self, draw_list: &[RenderJob], frame: &mut S) {
          let mut ofs = [0.0, 0.0];
+         let mut rot = [0.0, 0.0];
+
          for job in draw_list {
             match *job {
                 RenderJob::ClearDepth(depth)    => frame.clear_depth(depth),
                 RenderJob::ClearScreen(r,g,b,a) => frame.clear_color(r,g,b,a),
                 RenderJob::UniformOffset(uofs)  => ofs = uofs,
+                RenderJob::UniformRotate(urot)  => rot = urot,
+                RenderJob::ResetUniforms()      => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
                 RenderJob::DrawRect(rect) => {
                     // draws a fixed size rectangle which is aspect corrected to the screen
 
@@ -153,8 +157,16 @@ impl<'scn> RenderGroup<'scn> {
                         ibuf.write(&[0,1,3, 0,2,3]);
                     }
 
+
+                    let rot = rot[0];
+                    let mat = [[ rot.cos(), -rot.sin(), 0.0, 0.0],
+                               [ rot.sin(),  rot.cos(), 0.0, 0.0],
+                               [       0.0,        0.0, 1.0, 0.0],
+                               [       0.0,        0.0, 0.0, 1.0f32]];
+
                     let uniforms = uniform! {
                         tex:  &self.shader.blank_tex,
+                        rot:  mat,
                         tofs: ofs,
                     };
 
@@ -183,9 +195,16 @@ impl<'scn> RenderGroup<'scn> {
                     let x1 = (x *  2.0) - 1.0; let x2 = x1 + (w * 2.0);
                     let y1 = (y * -2.0) + 1.0; let y2 = y1 - (h * 2.0);
 
+                    let rot = rot[0];
+                    let mat = [[ rot.cos(), -rot.sin(), 0.0, 0.0],
+                               [ rot.sin(),  rot.cos(), 0.0, 0.0],
+                               [       0.0,        0.0, 1.0, 0.0],
+                               [       0.0,        0.0, 0.0, 1.0f32]];
+
                     let uniforms = uniform! {
                         tex:  &self.textures[texture_id],
-                        tofs: [0.0f32, 0.0],
+                        rot:  mat,
+                        tofs: ofs,
                     };
 
                     { // render a quad into the vertex buffer
@@ -274,5 +293,7 @@ pub enum RenderJob {
     ClearScreen(f32, f32, f32, f32),
     DrawRect(Rect),
     UniformOffset([f32; 2]), // TODO: grosssssss... state in my renderer?
+    UniformRotate([f32; 2]), // TODO: grosssssss... state in my renderer?
+    ResetUniforms(),
     TexRect(usize, f32, f32, f32, f32, f32),
 }

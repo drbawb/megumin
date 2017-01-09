@@ -4,8 +4,12 @@ in vec2 vt_coords;
 out vec4 color;
 
 uniform sampler2D tex;
+uniform mat4 rot;
 uniform vec2 tofs;
 
 void main() {
-    color = texture(tex, vt_coords + tofs);
+    vec4 lXY = rot * vec4(vt_coords, 0.0, 1.0);
+    vec4 lUV = rot * vec4(tofs, 0.0, 1.0);
+
+    color = texture(tex, lXY.xy + lUV.xy);
 }

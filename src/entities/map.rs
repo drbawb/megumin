@@ -14,6 +14,7 @@ pub enum Direction { Up, Right, Down, Left }
 
 pub struct TileMap {
     ofs_x: f32, ofs_y: f32,
+    rotation: f32,
     stars: usize,
 }
 
@@ -23,16 +24,21 @@ impl TileMap {
 
         let rtex = display.store_texture(fill_star(&mut buf)); 
         TileMap {
-            ofs_x: 0.0, ofs_y: 0.0,
+            ofs_x:    0.0, 
+            ofs_y:    0.0,
+            rotation: 0.0,
+
             stars: rtex,
         }
     }
 
     pub fn update(&mut self, controller: &Input, dt: Duration) {
-        if controller.is_key_held(VKC::Up)    { self.integrate(dt, Direction::Up)    }
-        if controller.is_key_held(VKC::Right) { self.integrate(dt, Direction::Right) }
-        if controller.is_key_held(VKC::Down)  { self.integrate(dt, Direction::Down)  }
-        if controller.is_key_held(VKC::Left)  { self.integrate(dt, Direction::Left)  }
+             if controller.is_key_held(VKC::W) { self.integrate(dt, Direction::Up)    }
+        else if controller.is_key_held(VKC::A) { self.integrate(dt, Direction::Left)  }
+        else if controller.is_key_held(VKC::S) { self.integrate(dt, Direction::Down)  }
+        else if controller.is_key_held(VKC::D) { self.integrate(dt, Direction::Right) }
+        else if controller.is_key_held(VKC::Q) { self.rotate(dt, Direction::Left)  }
+        else if controller.is_key_held(VKC::E) { self.rotate(dt, Direction::Right) }
     }
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
@@ -47,12 +53,32 @@ impl TileMap {
         // integrate velocity over time => offset distance
         self.ofs_x += vx * dt2ms(dt) as f32;
         self.ofs_y += vy * dt2ms(dt) as f32;
+
+        // TODO: wrap offset into unit square
+        // if self.ofs_x >=  1.0 { self.ofs_x = -1.0 }
+        // if self.ofs_x <= -1.0 { self.ofs_x =  1.0 }
+        // if self.ofs_y >=  1.0 { self.ofs_y = -1.0 }
+        // if self.ofs_y <= -1.0 { self.ofs_y =  1.0 }
+
+    }
+
+    fn rotate(&mut self, dt: Duration, dir: Direction) {
+        let vr = match dir {
+            Direction::Left  => -SCROLL_V,
+            Direction::Right =>  SCROLL_V,
+            _ => panic!("tilemap cannot rotate this direction ..."),
+        };
+
+        self.rotation += vr * dt2ms(dt) as f32;
     }
 
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
         // TODO: normalized coords
         let (w,h) = (1.0, 1.0);
+        jobs.push(RenderJob::UniformOffset([self.ofs_x, self.ofs_y]));
+        jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
         jobs.push(RenderJob::TexRect(self.stars, 0.0, 0.0, 0.0, w, h));
+        jobs.push(RenderJob::ResetUniforms());
     }
 }
 

@@ -2,9 +2,12 @@
 
 in vec3 pos;
 in vec2 uv;
+
+uniform mat4 rot;
+
 out vec2 vt_coords;
 
 void main() {
     vt_coords = uv;
-    gl_Position = vec4(pos, 1.0);
+    gl_Position = rot * vec4(pos, 1.0);
 }
