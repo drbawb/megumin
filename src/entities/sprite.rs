@@ -50,6 +50,8 @@ impl Sprite {
     }
 
     pub fn update(&mut self, controller: &Input, dt: Duration) {
+        self.draw_tex = None;
+
              if controller.is_key_held(VKC::W) { self.draw_tex = Some(self.tx_fly_w); self.integrate(dt, Direction::Up)    }
         else if controller.is_key_held(VKC::A) { self.draw_tex = Some(self.tx_fly_a); self.integrate(dt, Direction::Left)  }
         else if controller.is_key_held(VKC::S) { self.draw_tex = Some(self.tx_fly_s); self.integrate(dt, Direction::Down)  }
@@ -57,7 +59,6 @@ impl Sprite {
 
              if controller.is_key_held(VKC::Q) { self.draw_tex = Some(self.tx_fly_q); self.rotate(dt, Direction::Left)     }
         else if controller.is_key_held(VKC::E) { self.draw_tex = Some(self.tx_fly_e); self.rotate(dt, Direction::Right)    }
-        else { self.draw_tex = None }
     }
 
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
