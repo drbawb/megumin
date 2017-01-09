@@ -2,14 +2,12 @@ use std::time::Duration;
 
 use glium::glutin::VirtualKeyCode as VKC;
 
-use units::dt2ms;
+use units::{dt2ms, Direction};
 use input::Input;
 use render::{self, RenderJob};
 
-
 static SCROLL_V: f32 = 0.001; // (.001px * 1000ms) = 1 texture height / sec.
 
-pub enum Direction { Up, Right, Down, Left }
 
 pub struct ScrollyBox { ofs: [f32; 2] }
 

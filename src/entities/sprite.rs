@@ -4,12 +4,10 @@ use glium::glutin::VirtualKeyCode as VKC;
 
 use input::Input;
 use render::{RenderJob, RenderGroup};
-use units::dt2ms;
+use units::{dt2ms, Direction};
 
 static SHIP_ACCEL: f32 = 0.00001; // .0001 increments => .001
 static SHIP_VMAX: f32  = 0.001;  // (.001px * 1000ms) = 1 texture height / sec.
-
-pub enum Direction { Up, Right, Down, Left }
 
 pub struct Sprite {
      x: f32,  y: f32,

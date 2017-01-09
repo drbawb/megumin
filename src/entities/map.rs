@@ -5,12 +5,10 @@ use rand::{thread_rng, Rng};
 
 use input::Input;
 use render::{RenderGroup, RenderJob};
-use units::dt2ms;
+use units::{dt2ms, Direction};
 
 static MAP_SIZE: usize = 256;
 static SCROLL_V: f32 = 0.001; // (.001px * 1000ms) = 1 texture height / sec.// game settings
-
-pub enum Direction { Up, Right, Down, Left }
 
 pub struct TileMap {
     ofs_x: f32, ofs_y: f32,

@@ -7,6 +7,9 @@ pub fn dt2ms(dt: Duration) -> u64 {
     (dt.as_secs() * 1000) + (dt.subsec_nanos() as u64 / 1_000_000)
 }
 
+/// Represents the cardinal direction of an entity
+pub enum Direction { Up, Right, Down, Left }
+
 /// Millis represents a length of time in milliseconds as a signed integer.
 /// (NOTE: As `Millis` supports basic arithmetic: "negative time" is possible.)
 #[derive(Clone,Copy, PartialEq,Eq,PartialOrd,Ord)]
