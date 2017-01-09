@@ -83,32 +83,40 @@ impl Sprite {
         let (ax, ay) = match dir {
             Direction::Up    => (        0.0,  SHIP_ACCEL),
             Direction::Down  => (        0.0, -SHIP_ACCEL),
-            Direction::Left  => (-SHIP_ACCEL,         0.0),
-            Direction::Right => ( SHIP_ACCEL,         0.0),
+            Direction::Left  => ( SHIP_ACCEL,         0.0),
+            Direction::Right => (-SHIP_ACCEL,         0.0),
+        };
+
+        let (max_x, max_y): (f32,f32) = match dir {
+            Direction::Up    => (       0.0,  SHIP_VMAX),
+            Direction::Down  => (       0.0, -SHIP_VMAX),
+            Direction::Left  => (-SHIP_VMAX,        0.0),
+            Direction::Right => ( SHIP_VMAX,        0.0),
         };
 
         // perform rotaiton of acceleration vector by hand
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
 
-        println!("acc b4: ({},{})", ax, ay);
-        let ax = (cos_r * ax) - (sin_r * ay);
-        let ay = (sin_r * ax) + (cos_r * ay);
-        println!("acc ar: ({},{})", ax, ay);
+        // println!("acc b4: ({},{})", ax, ay);
+        let rax = (cos_r * ax) - (sin_r * ay);
+        let ray = (sin_r * ax) + (cos_r * ay);
+        // println!("acc ar: ({},{})", ax, ay);
 
-        let max_x = if ax < 0.0 { -SHIP_VMAX } else { SHIP_VMAX };
-        let max_y = if ay < 0.0 { -SHIP_VMAX } else { SHIP_VMAX };
-        let max_x = (cos_r * max_x) - (sin_r * max_y);
-        let max_y = (sin_r * max_x) + (cos_r * max_y);
+        println!("max before: ({},{})", max_x, max_y);
+        let max_rx = (cos_r * max_x) - (sin_r * max_y);
+        let max_ry = (sin_r * max_x) + (cos_r * max_y);
+        println!("max after: ({},{})", max_rx, max_ry);
 
-        self.vx = self.vx + (ax * dt2ms(dt) as f32);
-        self.vy = self.vy + (ay * dt2ms(dt) as f32);
+        // apply force in direction of heading
+        self.vx = self.vx + (rax * dt2ms(dt) as f32);
+        self.vy = self.vy + (ray * dt2ms(dt) as f32);
+        
+        if rax < 0.0 { self.vx = f32::max(self.vx, max_rx); } 
+        else { self.vx = f32::min(self.vx, max_rx); }
 
-        if ax < 0.0 { self.vx = f32::max(self.vx, max_x); } 
-        else { self.vx = f32::min(self.vx, max_x); }
-
-        if ay < 0.0 { self.vy = f32::max(self.vy, max_y); }
-        else { self.vy = f32::min(self.vy, max_y); }
+        if ray < 0.0 { self.vy = f32::max(self.vy, max_ry); }
+        else { self.vy = f32::min(self.vy, max_ry); }
 
         println!("vx: {:?}, vy: {:?}", self.vx, self.vy);
     }
