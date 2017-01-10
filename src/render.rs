@@ -123,28 +123,10 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::UniformRotate(urot)  => rot = urot,
                 RenderJob::ResetUniforms        => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
 
-                RenderJob::Draw(TexRect { texture_id, dim: Rect { x, y, z, w, h }}) => {
+                RenderJob::Draw(TexRect { texture_id, dim }) => {
                     // draws a normalized rectangle w/ a texture 
-                    
-                    // TODO: translate normalized coordinates (0=>1) to unit square
-                    // f(x) = (2x) - 1
-                    // f(0) = (2*0) - 1 = -1
-                    // f(1) = (2*1) - 1 =  1
-                    // (grows right, e.g: +)
-                    //
-                    // f(y) = (-2x) + 1
-                    // f(0) = (-2*0) + 1 =  1
-                    // f(1) = (-2*1) + 1 = -1
-                    // (grows down, e.g: -)
-                    // 
-                    let x1 = (x *  2.0) - 1.0; let x2 = x1 + (w * 2.0);
-                    let y1 = (y * -2.0) + 1.0; let y2 = y1 - (h * 2.0);
-
-                    let rot = rot[0];
-                    let mat = [[ rot.cos(), -rot.sin(), 0.0, 0.0],
-                               [ rot.sin(),  rot.cos(), 0.0, 0.0],
-                               [       0.0,        0.0, 1.0, 0.0],
-                               [       0.0,        0.0, 0.0, 1.0f32]];
+                    let (x1,y1, x2,y2) = unit_position(dim);
+                    let mat = rotation_mat(rot[0]);
 
                     let uniforms = uniform! {
                         tex:  &self.textures[texture_id],
@@ -160,10 +142,10 @@ impl<'scn> RenderGroup<'scn> {
                         let vbuf = self.shader.vbuf.slice_mut(0..4).unwrap();
 
                         vbuf.write(&[
-                            V3 { pos: [x1, y1, z], uv: [ 0.0,  0.0] },
-                            V3 { pos: [x1, y2, z], uv: [ 0.0,  1.0] },
-                            V3 { pos: [x2, y1, z], uv: [ 1.0,  0.0] },
-                            V3 { pos: [x2, y2, z], uv: [ 1.0,  1.0] },
+                            V3 { pos: [x1, y1, dim.z], uv: [ 0.0,  0.0] },
+                            V3 { pos: [x1, y2, dim.z], uv: [ 0.0,  1.0] },
+                            V3 { pos: [x2, y1, dim.z], uv: [ 1.0,  0.0] },
+                            V3 { pos: [x2, y2, dim.z], uv: [ 1.0,  1.0] },
                         ]);
 
                         ibuf.write(&[0,1,3, 0,2,3]);
@@ -178,47 +160,27 @@ impl<'scn> RenderGroup<'scn> {
                 },
 
                 RenderJob::DrawMany(texture_id, ref entities) => {
-                    // draws a normalized rectangle w/ a texture 
-                    
-                    // TODO: translate normalized coordinates (0=>1) to unit square
-                    // f(x) = (2x) - 1
-                    // f(0) = (2*0) - 1 = -1
-                    // f(1) = (2*1) - 1 =  1
-                    // (grows right, e.g: +)
-                    //
-                    // f(y) = (-2x) + 1
-                    // f(0) = (-2*0) + 1 =  1
-                    // f(1) = (-2*1) + 1 = -1
-                    // (grows down, e.g: -)
-                    // 
-                    //
-
                     // TODO: maybe identity matrix? force rotation on CPU?
                     // these will all rotate as a single entity
-                    let rot = rot[0];
-                    let mat = [[ rot.cos(), -rot.sin(), 0.0, 0.0],
-                               [ rot.sin(),  rot.cos(), 0.0, 0.0],
-                               [       0.0,        0.0, 1.0, 0.0],
-                               [       0.0,        0.0, 0.0, 1.0f32]];
 
+                    let mat = rotation_mat(rot[0]);
                     let uniforms = uniform! {
                         tex:  &self.textures[texture_id],
                         rot:  mat,
                         tofs: ofs,
                     };
 
-                    let verts: Vec<V3> = entities.iter().flat_map(|&Rect { x, y, z, w, h }| {
-                        let x1 = (x *  2.0) - 1.0; let x2 = x1 + (w * 2.0);
-                        let y1 = (y * -2.0) + 1.0; let y2 = y1 - (h * 2.0);
+                    let verts: Vec<V3> = entities.iter().flat_map(|dim| {
+                        let (x1,y1, x2,y2) = unit_position(*dim);
 
                         vec![
-                             V3 { pos: [x1, y1, z], uv: [ 0.0,  0.0] },
-                             V3 { pos: [x2, y1, z], uv: [ 1.0,  0.0] },
-                             V3 { pos: [x2, y2, z], uv: [ 1.0,  1.0] },
+                             V3 { pos: [x1, y1, dim.z], uv: [ 0.0,  0.0] },
+                             V3 { pos: [x2, y1, dim.z], uv: [ 1.0,  0.0] },
+                             V3 { pos: [x2, y2, dim.z], uv: [ 1.0,  1.0] },
 
-                             V3 { pos: [x1, y1, z], uv: [ 0.0,  0.0] },
-                             V3 { pos: [x1, y2, z], uv: [ 0.0,  1.0] },
-                             V3 { pos: [x2, y2, z], uv: [ 1.0,  1.0] }]
+                             V3 { pos: [x1, y1, dim.z], uv: [ 0.0,  0.0] },
+                             V3 { pos: [x1, y2, dim.z], uv: [ 0.0,  1.0] },
+                             V3 { pos: [x2, y2, dim.z], uv: [ 1.0,  1.0] }]
 
                     }).collect();
 
@@ -291,6 +253,32 @@ impl<'scn> RenderGroup<'scn> {
 pub struct Rect {
     pub x: f32, pub y: f32, pub z: f32,
     pub w: f32, pub h: f32,
+}
+
+/// Translates a unit-length vector to the unit cube
+fn unit_position(rect: Rect) -> (f32, f32, f32, f32) {
+    // f(x) = (2x) - 1
+    // f(0) = (2*0) - 1 = -1
+    // f(1) = (2*1) - 1 =  1
+    // (grows right, e.g: +)
+    //
+    // f(y) = (-2x) + 1
+    // f(0) = (-2*0) + 1 =  1
+    // f(1) = (-2*1) + 1 = -1
+    // (grows down, e.g: -)
+
+    let x1 = (rect.x *  2.0) - 1.0; let x2 = x1 + (rect.w * 2.0);
+    let y1 = (rect.y * -2.0) + 1.0; let y2 = y1 - (rect.h * 2.0);
+
+    (x1,y1, x2,y2)
+}
+
+/// Prepares a rotation matrix
+fn rotation_mat(theta: f32) -> [[f32; 4]; 4] {
+    [[ theta.cos(), -theta.sin(), 0.0, 0.0],
+     [ theta.sin(),  theta.cos(), 0.0, 0.0],
+     [         0.0,          0.0, 1.0, 0.0],
+     [         0.0,          0.0, 0.0, 1.0]]
 }
 
 #[derive(Copy,Clone)]
