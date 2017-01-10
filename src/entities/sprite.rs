@@ -117,7 +117,6 @@ impl Sprite {
     }
 
     fn pewpew(&mut self) {
-        println!("self.particles :: {}", self.particles.len());
         if self.particles.len() == render::MAX_PARTICLES { return }
 
         let (w,h) = (0.035, 0.035);
@@ -182,7 +181,6 @@ impl Sprite {
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
 
-        // println!("acc b4: ({},{})", ax, ay);
         let rax = (cos_r * ax) - (sin_r * ay);
         let ray = (sin_r * ax) + (cos_r * ay);
         let max_rx = (cos_r * max_x) - (sin_r * max_y);
@@ -197,8 +195,6 @@ impl Sprite {
 
         if ray < 0.0 { self.vy = f32::max(self.vy, max_ry); }
         else { self.vy = f32::min(self.vy, max_ry); }
-
-        println!("vx: {:?}, vy: {:?}", self.vx, self.vy);
     }
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {
@@ -209,6 +205,5 @@ impl Sprite {
         };
 
         self.rotation += vr * dt2ms(dt) as f32;
-        println!("rotation => {}", self.rotation);
     }
 }

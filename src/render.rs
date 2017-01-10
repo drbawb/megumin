@@ -202,7 +202,7 @@ impl<'scn> RenderGroup<'scn> {
                                [       0.0,        0.0, 0.0, 1.0f32]];
 
                     let uniforms = uniform! {
-                        tex:  &self.textures[texture_id],
+                        tex:  &self.shader.blank_tex,
                         rot:  mat,
                         tofs: ofs,
                     };
@@ -226,15 +226,16 @@ impl<'scn> RenderGroup<'scn> {
                         self.shader.vbuf.invalidate();
                         let vbuf = self.shader.vbuf.slice_mut(0..verts.len())
                                                    .expect("could not upload partial vbuf");
-                        vbuf.write(&verts[..]);
+                        vbuf.write(&verts);
                     }
 
-                    frame.draw(&self.shader.vbuf, 
+                    frame.draw(self.shader.vbuf.slice(0..verts.len()).unwrap(),
                                NoIndices(PrimitiveType::TrianglesList),
                                &self.shader.rect_prog, 
                                &uniforms, 
                                self.config).expect("could not draw tri");
-                },
+
+            },
             }
         }       
     }
