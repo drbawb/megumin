@@ -6,6 +6,7 @@ use glium::glutin::VirtualKeyCode as VKC;
 use input::Input;
 use render::{self, Rect, TexRect, RenderJob, RenderGroup};
 use units::{dt2ms, Direction};
+use units::linear::V2;
 
 // TODO: how to factor aspect out of here...
 static SHIP_ACCEL_X: f32  = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
@@ -14,7 +15,6 @@ static SHIP_VMAX_X: f32   = (256.0 / 1280.0) * 0.001;         // px/s
 static SHIP_VMAX_Y: f32   = (256.0 /  720.0) * 0.001;         // px/s
 static SHIP_ROT:  f32   = r32::PI * 0.001;                    // rad/s
 static BULLET_VMAX: f32 = 0.0007;
-
 
 pub struct Particle {
      x: f32,  y: f32,
@@ -37,8 +37,7 @@ impl Particle {
 
 
 pub struct Sprite {
-     x: f32,  y: f32,
-    vx: f32, vy: f32,
+    pos: V2, vel: V2,
     rotation: f32,
 
     particles: Vec<Particle>,
@@ -60,8 +59,8 @@ pub struct Sprite {
 impl Sprite {
     pub fn new(display: &mut RenderGroup) -> Self {
         Sprite {
-             x: 0.5,  y: 0.5,
-            vx: 0.0, vy: 0.0,
+            pos: V2::at(0.5, 0.5),
+            vel: V2::at(0.0, 0.0),
             rotation: 0.0,
 
             particles: Vec::with_capacity(render::MAX_PARTICLES),
@@ -102,7 +101,6 @@ impl Sprite {
         else if controller.is_key_held(VKC::E) { self.draw_tex = Some(self.tx_fly_e); self.rotate(dt, Direction::Right)    }
 
         if controller.was_key_pressed(VKC::Space) {  self.pewpew(); }
-
     }
 
     fn step_particles(&mut self, dt: Duration) {
@@ -123,8 +121,8 @@ impl Sprite {
         if self.particles.len() == render::MAX_PARTICLES { return }
 
         let (w,h) = (0.035, 0.035);
-        let cx = self.x - (w / 2.0);
-        let cy = self.y - (h / 2.0);
+        let cx = self.pos.x - (w / 2.0);
+        let cy = self.pos.y - (h / 2.0);
 
         // fire from current heading, no accel time
         let cos_r = self.rotation.cos();
@@ -140,8 +138,8 @@ impl Sprite {
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
         // TODO: normalized coords
         let (w,h) = (0.035, 0.035);
-        let cx = self.x - (w / 2.0);
-        let cy = self.y - (h / 2.0);
+        let cx = self.pos.x - (w / 2.0);
+        let cy = self.pos.y - (h / 2.0);
 
         // rotate our sprite space &
         jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
@@ -162,7 +160,7 @@ impl Sprite {
         jobs.push(RenderJob::DrawMany(self.tx_crate, rects));
     }
 
-    pub fn velocity(&self) -> (f32, f32) { (self.vx, self.vy) }
+    pub fn velocity(&self) -> (f32, f32) { (self.vel.x, self.vel.y) }
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
         let (ax, ay) = match dir {
@@ -189,14 +187,13 @@ impl Sprite {
         let max_ry = (sin_r * max_x) + (cos_r * max_y);
 
         // apply force in direction of heading
-        self.vx = self.vx + (rax * dt2ms(dt) as f32);
-        self.vy = self.vy + (ray * dt2ms(dt) as f32);
+        self.vel = self.vel + V2::at(rax * dt2ms(dt) as f32, ray * dt2ms(dt) as f32);
         
-        if rax < 0.0 { self.vx = f32::max(self.vx, max_rx); } 
-        else { self.vx = f32::min(self.vx, max_rx); }
+        if rax < 0.0 { self.vel.x = f32::max(self.vel.x, max_rx); } 
+        else { self.vel.x = f32::min(self.vel.x, max_rx); }
 
-        if ray < 0.0 { self.vy = f32::max(self.vy, max_ry); }
-        else { self.vy = f32::min(self.vy, max_ry); }
+        if ray < 0.0 { self.vel.y = f32::max(self.vel.y, max_ry); }
+        else { self.vel.y = f32::min(self.vel.y, max_ry); }
     }
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {

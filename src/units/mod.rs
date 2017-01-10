@@ -11,4 +11,5 @@ pub use units::physics::dt2ms;
 
 // Load sub-libraries
 pub mod drawing;
+pub mod linear;
 pub mod physics;
