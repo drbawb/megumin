@@ -15,8 +15,9 @@ use units::drawing::V3;
 //       blow up OpenGL.
 
 // renderer settings
-static MAX_RECTS: usize = 1000;
-static MAX_TEXTURES: usize = 128;
+pub static MAX_PARTICLES: usize = 256;
+pub static MAX_RECTS: usize = 1000;
+pub static MAX_TEXTURES: usize = 128;
 
 // shader etc ...
 static SHD_SQUARE_VTX: &'static str = include_str!("../assets/shaders/square.glsv");
@@ -94,6 +95,7 @@ pub struct RenderGroup<'scn> {
     config:  &'scn DrawParameters<'scn>,
     shader:  BasicShader,
 
+    verts: Vec<>
     textures: Vec<Texture2d>,
 }
 
@@ -240,6 +242,5 @@ pub enum RenderJob {
     UniformOffset([f32; 2]),
     UniformRotate([f32; 2]),
     ResetUniforms,
-
     TexRect(usize, f32, f32, f32, f32, f32),
 }

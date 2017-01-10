@@ -24,6 +24,7 @@ fn main() {
     // setup hardware
     println!("initializing display ...");
     let display = WindowBuilder::new()
+                                .with_dimensions(1280, 720)
                                 .with_depth_buffer(24)
                                 .with_title("megumin")
                                 .build_glium()
