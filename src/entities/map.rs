@@ -4,7 +4,7 @@ use glium::glutin::VirtualKeyCode as VKC;
 use rand::{thread_rng, Rng};
 
 use input::Input;
-use render::{RenderGroup, RenderJob};
+use render::{TexRect, RenderGroup, RenderJob};
 use units::{dt2ms, Direction};
 
 static MAP_SIZE: usize = 256;
@@ -62,7 +62,7 @@ impl TileMap {
         let (w,h) = (1.0, 1.0);
         jobs.push(RenderJob::UniformOffset([self.ofs_x, self.ofs_y]));
         // jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
-        jobs.push(RenderJob::TexRect(self.stars, 0.0, 0.0, 0.0, w, h));
+        jobs.push(RenderJob::Draw(TexRect::from(self.stars, 0.0, 0.0, 0.0, w, h)));
         jobs.push(RenderJob::ResetUniforms);
     }
 }

@@ -5,7 +5,7 @@ use glium::{Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::Facade;
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::draw_parameters::DrawParameters;
-use glium::index::{IndexBuffer, PrimitiveType};
+use glium::index::{NoIndices, IndexBuffer, PrimitiveType};
 use image::{self, GenericImage, ImageFormat};
 
 use units::drawing::V3;
@@ -95,7 +95,6 @@ pub struct RenderGroup<'scn> {
     config:  &'scn DrawParameters<'scn>,
     shader:  BasicShader,
 
-    verts: Vec<>
     textures: Vec<Texture2d>,
 }
 
@@ -124,7 +123,7 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::UniformRotate(urot)  => rot = urot,
                 RenderJob::ResetUniforms        => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
 
-                RenderJob::TexRect(texture_id, x, y, z, w, h) => {
+                RenderJob::Draw(TexRect { texture_id, dim: Rect { x, y, z, w, h }}) => {
                     // draws a normalized rectangle w/ a texture 
                     
                     // TODO: translate normalized coordinates (0=>1) to unit square
@@ -176,6 +175,65 @@ impl<'scn> RenderGroup<'scn> {
                                &uniforms, 
                                self.config).expect("could not draw tri");
 
+                },
+
+                RenderJob::DrawMany(texture_id, ref entities) => {
+                    // draws a normalized rectangle w/ a texture 
+                    
+                    // TODO: translate normalized coordinates (0=>1) to unit square
+                    // f(x) = (2x) - 1
+                    // f(0) = (2*0) - 1 = -1
+                    // f(1) = (2*1) - 1 =  1
+                    // (grows right, e.g: +)
+                    //
+                    // f(y) = (-2x) + 1
+                    // f(0) = (-2*0) + 1 =  1
+                    // f(1) = (-2*1) + 1 = -1
+                    // (grows down, e.g: -)
+                    // 
+                    //
+
+                    // TODO: maybe identity matrix? force rotation on CPU?
+                    // these will all rotate as a single entity
+                    let rot = rot[0];
+                    let mat = [[ rot.cos(), -rot.sin(), 0.0, 0.0],
+                               [ rot.sin(),  rot.cos(), 0.0, 0.0],
+                               [       0.0,        0.0, 1.0, 0.0],
+                               [       0.0,        0.0, 0.0, 1.0f32]];
+
+                    let uniforms = uniform! {
+                        tex:  &self.textures[texture_id],
+                        rot:  mat,
+                        tofs: ofs,
+                    };
+
+                    let verts: Vec<V3> = entities.iter().flat_map(|&Rect { x, y, z, w, h }| {
+                        let x1 = (x *  2.0) - 1.0; let x2 = x1 + (w * 2.0);
+                        let y1 = (y * -2.0) + 1.0; let y2 = y1 - (h * 2.0);
+
+                        vec![
+                             V3 { pos: [x1, y1, z], uv: [ 0.0,  0.0] },
+                             V3 { pos: [x2, y1, z], uv: [ 1.0,  0.0] },
+                             V3 { pos: [x2, y2, z], uv: [ 1.0,  1.0] },
+
+                             V3 { pos: [x1, y1, z], uv: [ 0.0,  0.0] },
+                             V3 { pos: [x1, y2, z], uv: [ 0.0,  1.0] },
+                             V3 { pos: [x2, y2, z], uv: [ 1.0,  1.0] }]
+
+                    }).collect();
+
+                    {
+                        self.shader.vbuf.invalidate();
+                        let vbuf = self.shader.vbuf.slice_mut(0..verts.len())
+                                                   .expect("could not upload partial vbuf");
+                        vbuf.write(&verts[..]);
+                    }
+
+                    frame.draw(&self.shader.vbuf, 
+                               NoIndices(PrimitiveType::TrianglesList),
+                               &self.shader.rect_prog, 
+                               &uniforms, 
+                               self.config).expect("could not draw tri");
                 },
             }
         }       
@@ -230,8 +288,20 @@ impl<'scn> RenderGroup<'scn> {
 
 #[derive(Copy,Clone)]
 pub struct Rect {
-    pub x: i32, pub y: i32,
-    pub w: i32, pub h: i32,
+    pub x: f32, pub y: f32, pub z: f32,
+    pub w: f32, pub h: f32,
+}
+
+#[derive(Copy,Clone)]
+pub struct TexRect {
+    texture_id: usize,
+    dim: Rect,
+}
+
+impl TexRect {
+    pub fn from(id: usize, x: f32, y: f32, z: f32, w: f32, h: f32) -> TexRect {
+        TexRect { texture_id: id, dim: Rect { x: x, y: y, z: z, w: w, h: h } }
+    }
 }
 
 pub enum RenderJob {
@@ -242,5 +312,6 @@ pub enum RenderJob {
     UniformOffset([f32; 2]),
     UniformRotate([f32; 2]),
     ResetUniforms,
-    TexRect(usize, f32, f32, f32, f32, f32),
+    Draw(TexRect),
+    DrawMany(usize, Vec<Rect>),
 }

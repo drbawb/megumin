@@ -3,7 +3,7 @@ use std::time::Duration;
 use glium::glutin::VirtualKeyCode as VKC;
 
 use input::Input;
-use render::{self, RenderJob, RenderGroup};
+use render::{self, Rect, TexRect, RenderJob, RenderGroup};
 use units::{dt2ms, Direction};
 
 static SHIP_ACCEL: f32  = 0.00001; // .0001 increments => .001
@@ -143,21 +143,22 @@ impl Sprite {
 
         // rotate our sprite space &
         jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
-        jobs.push(RenderJob::TexRect(self.tx_idle, cx, cy, -0.5, w, h));
+        jobs.push(RenderJob::Draw(TexRect::from(self.tx_idle, cx, cy, -0.5, w, h)));
 
         match self.draw_tex {
-            Some(tex_id) => jobs.push(RenderJob::TexRect(tex_id, cx, cy, -0.55, w, h)),
+            Some(tex_id) => jobs.push(RenderJob::Draw(TexRect::from(tex_id, cx, cy, -0.55, w, h))),
             None => {},
         }
-
+        
         jobs.push(RenderJob::ResetUniforms);
+       
+        // draw particles 
+        let rects: Vec<Rect> = self.particles.iter()
+                                             .map(|p| Rect { x: p.x, y: p.y, z: -0.56, w: w / 2.0, h: h / 2.0 })
+                                             .collect();
 
-
-        let pdescriptors: () = self.particles.iter()
-                                         .map(|p| (self.tx_crate, p.x, p.y, -0.56, w / 2.0, h / 2.0));
-        // for particle in &self.particles { 
-        //     jobs.push(RenderJob::TexRect(self.tx_crate, particle.x, particle.y, -0.56, w / 2.0, h / 2.0));
-        // }
+        if rects.is_empty() { return }
+        jobs.push(RenderJob::DrawMany(self.tx_crate, rects));
     }
 
     pub fn velocity(&self) -> (f32, f32) { (self.vx, self.vy) }
