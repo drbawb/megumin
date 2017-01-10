@@ -202,7 +202,7 @@ impl<'scn> RenderGroup<'scn> {
                                [       0.0,        0.0, 0.0, 1.0f32]];
 
                     let uniforms = uniform! {
-                        tex:  &self.shader.blank_tex,
+                        tex:  &self.textures[texture_id],
                         rot:  mat,
                         tofs: ofs,
                     };
