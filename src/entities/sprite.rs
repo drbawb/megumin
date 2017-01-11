@@ -9,12 +9,12 @@ use units::{dt2ms, Direction};
 use units::linear::V2;
 
 // TODO: how to factor aspect out of here...
-static SHIP_ACCEL_X: f32  = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
-static SHIP_ACCEL_Y: f32  = (128.0 /  720.0) * 0.001 * 0.001; // px/s^2
-static SHIP_VMAX_X: f32   = (256.0 / 1280.0) * 0.001;         // px/s
-static SHIP_VMAX_Y: f32   = (256.0 /  720.0) * 0.001;         // px/s
-static SHIP_ROT:  f32   = r32::PI * 0.001;                    // rad/s
-static BULLET_VMAX: f32 = 0.0007;
+static SHIP_ACCEL_X: f32 = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
+static SHIP_ACCEL_Y: f32 = (128.0 /  720.0) * 0.001 * 0.001; // px/s^2
+static SHIP_VMAX_X: f32  = (256.0 / 1280.0) * 0.001;         // px/s
+static SHIP_VMAX_Y: f32  = (256.0 /  720.0) * 0.001;         // px/s
+static SHIP_ROT:  f32    = r32::PI * 0.001;                  // rad/s
+static BULLET_VMAX: f32  = 0.0007;
 
 pub struct Particle {
      x: f32,  y: f32,
@@ -177,23 +177,18 @@ impl Sprite {
             Direction::Right => (-SHIP_VMAX_X,        0.0),
         };
 
-        // perform rotaiton of acceleration vector by hand
-        let cos_r = self.rotation.cos();
-        let sin_r = self.rotation.sin();
-
-        let rax = (cos_r * ax) - (sin_r * ay);
-        let ray = (sin_r * ax) + (cos_r * ay);
-        let max_rx = (cos_r * max_x) - (sin_r * max_y);
-        let max_ry = (sin_r * max_x) + (cos_r * max_y);
-
         // apply force in direction of heading
-        self.vel = self.vel + V2::at(rax * dt2ms(dt) as f32, ray * dt2ms(dt) as f32);
-        
-        if rax < 0.0 { self.vel.x = f32::max(self.vel.x, max_rx); } 
-        else { self.vel.x = f32::min(self.vel.x, max_rx); }
+        let acc  = V2::at(ax, ay).rot(self.rotation);
+        let maxv = V2::at(max_x, max_y).rot(self.rotation);
+        self.vel += acc * (dt2ms(dt) as f32);
+       
+        // acceleration based clamp
+        // TODO: probably just wrong ...
+        if acc.x < 0.0 { self.vel.x = f32::max(self.vel.x, maxv.x); } 
+        else { self.vel.x = f32::min(self.vel.x, maxv.x); }
 
-        if ray < 0.0 { self.vel.y = f32::max(self.vel.y, max_ry); }
-        else { self.vel.y = f32::min(self.vel.y, max_ry); }
+        if acc.y < 0.0 { self.vel.y = f32::max(self.vel.y, maxv.y); }
+        else { self.vel.y = f32::min(self.vel.y, maxv.y); }
     }
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {
