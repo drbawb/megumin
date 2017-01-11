@@ -17,7 +17,6 @@ static BULLET_VMAX: f32 = 0.0007;
 pub struct Particle {
      x: f32,  y: f32,
     vx: f32, vy: f32,
-    rotation: f32,
 
     pub is_alive: bool,
 }
@@ -28,7 +27,6 @@ impl Particle {
         Particle {
              x:  x,  y:  y,
             vx: vx, vy: vy,
-            rotation: 0.0,
 
             is_alive: true,
         }
