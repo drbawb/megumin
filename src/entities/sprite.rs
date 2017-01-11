@@ -1,3 +1,4 @@
+use std::f32::consts as r32;
 use std::time::Duration;
 
 use glium::glutin::VirtualKeyCode as VKC;
@@ -6,8 +7,10 @@ use input::Input;
 use render::{self, Rect, TexRect, RenderJob, RenderGroup};
 use units::{dt2ms, Direction};
 
-static SHIP_ACCEL: f32  = 0.00001; // .0001 increments => .001
-static SHIP_VMAX: f32   = 0.001;  // (.001px * 1000ms) = 1 texture height / sec.
+// TODO: how to factor aspect out of here...
+static SHIP_ACCEL: f32  = ( 64.0 / 720.0) * 0.001 * 0.001; // px/s^2
+static SHIP_VMAX: f32   = (256.0 / 720.0) * 0.001;         // px/s
+static SHIP_ROT:  f32   = r32::PI * 0.001;                 // rad/s
 static BULLET_VMAX: f32 = 0.0007;
 
 
@@ -173,8 +176,8 @@ impl Sprite {
         let (max_x, max_y): (f32,f32) = match dir {
             Direction::Up    => (       0.0,  SHIP_VMAX),
             Direction::Down  => (       0.0, -SHIP_VMAX),
-            Direction::Left  => (-SHIP_VMAX,        0.0),
-            Direction::Right => ( SHIP_VMAX,        0.0),
+            Direction::Left  => ( SHIP_VMAX,        0.0),
+            Direction::Right => (-SHIP_VMAX,        0.0),
         };
 
         // perform rotaiton of acceleration vector by hand
@@ -199,8 +202,8 @@ impl Sprite {
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {
         let vr = match dir {
-            Direction::Left  => -SHIP_VMAX,
-            Direction::Right =>  SHIP_VMAX,
+            Direction::Left  => -SHIP_ROT,
+            Direction::Right =>  SHIP_ROT,
             _ => panic!("tilemap cannot rotate this direction ..."),
         };
 

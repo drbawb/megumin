@@ -60,7 +60,9 @@ impl TileMap {
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
         // TODO: normalized coords
         let (w,h) = (1.0, 1.0);
-        jobs.push(RenderJob::UniformOffset([self.ofs_x, self.ofs_y]));
+        let x1 = (self.ofs_x * 2.0) - 1.0;
+        let y1 = (self.ofs_y * 2.0) + 1.0;
+        jobs.push(RenderJob::UniformOffset([x1, y1]));
         // jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
         jobs.push(RenderJob::Draw(TexRect::from(self.stars, 0.0, 0.0, 0.0, w, h)));
         jobs.push(RenderJob::ResetUniforms);
