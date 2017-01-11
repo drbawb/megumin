@@ -8,9 +8,11 @@ use render::{self, Rect, TexRect, RenderJob, RenderGroup};
 use units::{dt2ms, Direction};
 
 // TODO: how to factor aspect out of here...
-static SHIP_ACCEL: f32  = ( 64.0 / 720.0) * 0.001 * 0.001; // px/s^2
-static SHIP_VMAX: f32   = (256.0 / 720.0) * 0.001;         // px/s
-static SHIP_ROT:  f32   = r32::PI * 0.001;                 // rad/s
+static SHIP_ACCEL_X: f32  = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
+static SHIP_ACCEL_Y: f32  = (128.0 /  720.0) * 0.001 * 0.001; // px/s^2
+static SHIP_VMAX_X: f32   = (256.0 / 1280.0) * 0.001;         // px/s
+static SHIP_VMAX_Y: f32   = (256.0 /  720.0) * 0.001;         // px/s
+static SHIP_ROT:  f32   = r32::PI * 0.001;                    // rad/s
 static BULLET_VMAX: f32 = 0.0007;
 
 
@@ -106,8 +108,8 @@ impl Sprite {
     fn step_particles(&mut self, dt: Duration) {
         for particle in &mut self.particles {
             // apply force in direction of heading
-            particle.x +=  (particle.vx * dt2ms(dt) as f32);
-            particle.y +=  (particle.vy * dt2ms(dt) as f32);
+            particle.x +=  particle.vx * dt2ms(dt) as f32;
+            particle.y +=  particle.vy * dt2ms(dt) as f32;
 
             let on_x = particle.x > -1.0 && particle.x < 1.0;
             let on_y = particle.y > -1.0 && particle.y < 1.0;
@@ -149,7 +151,6 @@ impl Sprite {
             Some(tex_id) => jobs.push(RenderJob::Draw(TexRect::from(tex_id, cx, cy, -0.55, w, h))),
             None => {},
         }
-        
         jobs.push(RenderJob::ResetUniforms);
        
         // draw particles 
@@ -165,17 +166,17 @@ impl Sprite {
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
         let (ax, ay) = match dir {
-            Direction::Up    => (        0.0,  SHIP_ACCEL),
-            Direction::Down  => (        0.0, -SHIP_ACCEL),
-            Direction::Left  => ( SHIP_ACCEL,         0.0),
-            Direction::Right => (-SHIP_ACCEL,         0.0),
+            Direction::Up    => (        0.0,  SHIP_ACCEL_Y),
+            Direction::Down  => (        0.0, -SHIP_ACCEL_Y),
+            Direction::Left  => ( SHIP_ACCEL_X,         0.0),
+            Direction::Right => (-SHIP_ACCEL_X,         0.0),
         };
 
         let (max_x, max_y): (f32,f32) = match dir {
-            Direction::Up    => (       0.0,  SHIP_VMAX),
-            Direction::Down  => (       0.0, -SHIP_VMAX),
-            Direction::Left  => ( SHIP_VMAX,        0.0),
-            Direction::Right => (-SHIP_VMAX,        0.0),
+            Direction::Up    => (       0.0,  SHIP_VMAX_Y),
+            Direction::Down  => (       0.0, -SHIP_VMAX_Y),
+            Direction::Left  => ( SHIP_VMAX_X,        0.0),
+            Direction::Right => (-SHIP_VMAX_X,        0.0),
         };
 
         // perform rotaiton of acceleration vector by hand
