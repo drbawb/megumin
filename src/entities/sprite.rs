@@ -10,14 +10,12 @@ use units::linear::V2;
 
 // TODO: how to factor aspect out of here...
 static SHIP_ACCEL:  f32  = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
-static SHIP_VMAX:   f32  = (256.0 / 1280.0) * 0.001;         // px/s
+static SHIP_VMAX:   f32  = (512.0 / 1280.0) * 0.001;         // px/s
 static SHIP_ROT:    f32  = r32::PI * 0.001;                  // rad/s
 static BULLET_VMAX: f32  = 0.0007;
 
 pub struct Particle {
-     x: f32,  y: f32,
-    vx: f32, vy: f32,
-
+    pos: V2, vel: V2,
     pub is_alive: bool,
 }
 
@@ -25,8 +23,8 @@ impl Particle {
     pub fn at_speed(x: f32, y: f32, vx: f32, vy: f32) -> Self {
 
         Particle {
-             x:  x,  y:  y,
-            vx: vx, vy: vy,
+            pos: V2::at(x, y),
+            vel: V2::at(vx, vy),
 
             is_alive: true,
         }
@@ -50,7 +48,8 @@ pub struct Sprite {
     tx_fly_q: usize,
     tx_fly_e: usize,
 
-    draw_tex: Option<usize>,
+    engine_tex: Option<usize>,
+    thrust_tex: Option<usize>,
 }
 
 impl Sprite {
@@ -79,23 +78,25 @@ impl Sprite {
             // tx_fly_q: display.load_tga("assets/sprites/ship/SHIPQ001.tga"),
             // tx_fly_e: display.load_tga("assets/sprites/ship/SHIPE001.tga"),
 
-            draw_tex: None,
+            engine_tex: None,
+            thrust_tex: None,
 
         }
     }
 
     pub fn update(&mut self, controller: &Input, dt: Duration) {
-        self.draw_tex = None;
+        self.engine_tex = None;
+        self.thrust_tex = None;
         self.step_particles(dt);
 
         // handle controller input
-             if controller.is_key_held(VKC::W) { self.draw_tex = Some(self.tx_fly_w); self.integrate(dt, Direction::Up)    }
-        else if controller.is_key_held(VKC::A) { self.draw_tex = Some(self.tx_fly_a); self.integrate(dt, Direction::Left)  }
-        else if controller.is_key_held(VKC::S) { self.draw_tex = Some(self.tx_fly_s); self.integrate(dt, Direction::Down)  }
-        else if controller.is_key_held(VKC::D) { self.draw_tex = Some(self.tx_fly_d); self.integrate(dt, Direction::Right) }
+             if controller.is_key_held(VKC::W) { self.engine_tex = Some(self.tx_fly_w); self.integrate(dt, Direction::Up)    }
+        else if controller.is_key_held(VKC::A) { self.engine_tex = Some(self.tx_fly_a); self.integrate(dt, Direction::Left)  }
+        else if controller.is_key_held(VKC::S) { self.engine_tex = Some(self.tx_fly_s); self.integrate(dt, Direction::Down)  }
+        else if controller.is_key_held(VKC::D) { self.engine_tex = Some(self.tx_fly_d); self.integrate(dt, Direction::Right) }
 
-             if controller.is_key_held(VKC::Q) { self.draw_tex = Some(self.tx_fly_q); self.rotate(dt, Direction::Left)     }
-        else if controller.is_key_held(VKC::E) { self.draw_tex = Some(self.tx_fly_e); self.rotate(dt, Direction::Right)    }
+             if controller.is_key_held(VKC::Q) { self.thrust_tex = Some(self.tx_fly_q); self.rotate(dt, Direction::Left)     }
+        else if controller.is_key_held(VKC::E) { self.thrust_tex = Some(self.tx_fly_e); self.rotate(dt, Direction::Right)    }
 
         if controller.was_key_pressed(VKC::Space) {  self.pewpew(); }
     }
@@ -103,11 +104,9 @@ impl Sprite {
     fn step_particles(&mut self, dt: Duration) {
         for particle in &mut self.particles {
             // apply force in direction of heading
-            particle.x +=  particle.vx * dt2ms(dt) as f32;
-            particle.y +=  particle.vy * dt2ms(dt) as f32;
-
-            let on_x = particle.x > -1.0 && particle.x < 1.0;
-            let on_y = particle.y > -1.0 && particle.y < 1.0;
+            particle.pos += particle.vel * dt2ms(dt) as f32;
+            let on_x = particle.pos.x > -1.0 && particle.pos.x < 1.0;
+            let on_y = particle.pos.y > -1.0 && particle.pos.y < 1.0;
             particle.is_alive = on_x && on_y;
         }
 
@@ -138,19 +137,16 @@ impl Sprite {
         let cx = self.pos.x - (w / 2.0);
         let cy = self.pos.y - (h / 2.0);
 
-        // rotate our sprite space &
+        // draw our engine & thruster sprites w/ current orientation
         jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
         jobs.push(RenderJob::Draw(TexRect::from(self.tx_idle, cx, cy, -0.5, w, h)));
-
-        match self.draw_tex {
-            Some(tex_id) => jobs.push(RenderJob::Draw(TexRect::from(tex_id, cx, cy, -0.55, w, h))),
-            None => {},
-        }
+        if let Some(tx) = self.engine_tex { jobs.push(RenderJob::Draw(TexRect::from(tx, cx, cy, -0.54, w, h))) }
+        if let Some(tx) = self.thrust_tex { jobs.push(RenderJob::Draw(TexRect::from(tx, cx, cy, -0.55, w, h))) }
         jobs.push(RenderJob::ResetUniforms);
        
         // draw particles 
         let rects: Vec<Rect> = self.particles.iter()
-                                             .map(|p| Rect { x: p.x, y: p.y, z: -0.56, w: w / 2.0, h: h / 2.0 })
+                                             .map(|p| Rect { x: p.pos.x, y: p.pos.y, z: -0.56, w: w / 2.0, h: h / 2.0 })
                                              .collect();
 
         if rects.is_empty() { return }
