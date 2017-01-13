@@ -1,6 +1,15 @@
 use std::collections::HashMap;
 use glium::glutin::VirtualKeyCode;
 
+// TODO: add our own enumeration of keycodes to isolate game layer input
+//       handling from the underlying input lib(s)?
+
+// TODO: use statically sized arrays instead of hash tables?
+//       would use more memory, but reduce heap allocation.
+
+// TODO: be generic over any hashable/enumerable item? would be easier
+//       to port to other OS input libs.
+
 /// Responds to inquiries regarding three sets of keyboard input.
 ///
 ///- Pressed keys
