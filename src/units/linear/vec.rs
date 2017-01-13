@@ -1,7 +1,7 @@
 use std::ops::{Add, Sub, Mul, Neg};
 use std::ops::{AddAssign, SubAssign};
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,Debug)]
 pub struct V2 {
     pub x: f32, pub y: f32,
 }
@@ -9,12 +9,19 @@ pub struct V2 {
 impl V2 {
     pub fn at(x: f32, y: f32) -> Self { V2 { x: x, y: y } }
     
-    pub fn dot(self, rhs: &V2) -> f32 {
+    pub fn dot(self, rhs: V2) -> f32 {
         (self.x * rhs.x) + (self.y * rhs.y)
     }
 
     pub fn len(self) -> f32 {
         f32::sqrt(f32::powi(self.x, 2) + f32::powi(self.y, 2))
+    }
+
+    pub fn set_len(self, new_len: f32) -> V2 {
+        V2 {
+            x: self.x * (new_len / self.len()),
+            y: self.y * (new_len / self.len()),
+        }
     }
 
     pub fn norm(self) -> V2 {
@@ -102,5 +109,3 @@ impl Neg for V2 {
         }
     }
 }
-
-

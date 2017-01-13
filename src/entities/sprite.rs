@@ -9,11 +9,9 @@ use units::{dt2ms, Direction};
 use units::linear::V2;
 
 // TODO: how to factor aspect out of here...
-static SHIP_ACCEL_X: f32 = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
-static SHIP_ACCEL_Y: f32 = (128.0 /  720.0) * 0.001 * 0.001; // px/s^2
-static SHIP_VMAX_X: f32  = (256.0 / 1280.0) * 0.001;         // px/s
-static SHIP_VMAX_Y: f32  = (256.0 /  720.0) * 0.001;         // px/s
-static SHIP_ROT:  f32    = r32::PI * 0.001;                  // rad/s
+static SHIP_ACCEL:  f32  = (128.0 / 1280.0) * 0.001 * 0.001; // px/s^2
+static SHIP_VMAX:   f32  = (256.0 / 1280.0) * 0.001;         // px/s
+static SHIP_ROT:    f32  = r32::PI * 0.001;                  // rad/s
 static BULLET_VMAX: f32  = 0.0007;
 
 pub struct Particle {
@@ -53,7 +51,6 @@ pub struct Sprite {
     tx_fly_e: usize,
 
     draw_tex: Option<usize>,
-
 }
 
 impl Sprite {
@@ -164,31 +161,20 @@ impl Sprite {
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
         let (ax, ay) = match dir {
-            Direction::Up    => (        0.0,  SHIP_ACCEL_Y),
-            Direction::Down  => (        0.0, -SHIP_ACCEL_Y),
-            Direction::Left  => ( SHIP_ACCEL_X,         0.0),
-            Direction::Right => (-SHIP_ACCEL_X,         0.0),
-        };
-
-        let (max_x, max_y): (f32,f32) = match dir {
-            Direction::Up    => (       0.0,  SHIP_VMAX_Y),
-            Direction::Down  => (       0.0, -SHIP_VMAX_Y),
-            Direction::Left  => ( SHIP_VMAX_X,        0.0),
-            Direction::Right => (-SHIP_VMAX_X,        0.0),
+            Direction::Up    => (        0.0,  SHIP_ACCEL),
+            Direction::Down  => (        0.0, -SHIP_ACCEL),
+            Direction::Left  => ( SHIP_ACCEL,         0.0),
+            Direction::Right => (-SHIP_ACCEL,         0.0),
         };
 
         // apply force in direction of heading
         let acc  = V2::at(ax, ay).rot(self.rotation);
-        let maxv = V2::at(max_x, max_y).rot(self.rotation);
         self.vel += acc * (dt2ms(dt) as f32);
-       
-        // acceleration based clamp
-        // TODO: probably just wrong ...
-        if acc.x < 0.0 { self.vel.x = f32::max(self.vel.x, maxv.x); } 
-        else { self.vel.x = f32::min(self.vel.x, maxv.x); }
 
-        if acc.y < 0.0 { self.vel.y = f32::max(self.vel.y, maxv.y); }
-        else { self.vel.y = f32::min(self.vel.y, maxv.y); }
+        // clamp magnitude of the vector ^^,
+        if self.vel.len() > SHIP_VMAX {
+            self.vel = self.vel.set_len(SHIP_VMAX);
+        }
     }
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {
