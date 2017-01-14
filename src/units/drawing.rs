@@ -3,6 +3,8 @@ use std::ops::{Add, Sub, Mul, Div};
 static TILE_SIZE: i32          =  32;
 static SCALE: f64              = 1.0;
 
+pub type RGBA = (u8,u8,u8,u8);
+
 pub trait AsGame  { fn to_game(&self)   -> Game;  }
 pub trait AsTile  { fn to_tile(&self)  -> Tile;  }
 pub trait AsPixel { fn to_pixel(&self) -> Pixel; }

@@ -31,7 +31,6 @@ impl Particle {
     }
 }
 
-
 pub struct Sprite {
     pos: V2, vel: V2,
     rotation: f32,
@@ -98,6 +97,9 @@ impl Sprite {
         self.engine_tex = None;
         self.thrust_tex = None;
         self.step_particles(dt);
+        self.pos += self.vel * dt2ms(dt) as f32;
+
+        println!("ship :: hdg({}) vel({},{})", self.rotation, self.vel.x, self.vel.y);
 
         // check if player wants us to auto-invert the heading
         // if so we set the desired heading to our current heading rotated 180deg.
@@ -158,11 +160,11 @@ impl Sprite {
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
         // TODO: normalized coords
         let (w,h) = (0.035, 0.035);
-        let cx = self.pos.x - (w / 2.0);
-        let cy = self.pos.y - (h / 2.0);
+        let cx = 0.5 - (w / 2.0);
+        let cy = 0.5 - (h / 2.0);
 
         // draw our engine & thruster sprites w/ current orientation
-        jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
+        jobs.push(RenderJob::UniformRotate([self.rotation - (r32::PI / 2.0), 0.0]));
         jobs.push(RenderJob::Draw(TexRect::from(self.tx_idle, cx, cy, -0.5, w, h)));
         if let Some(tx) = self.engine_tex { jobs.push(RenderJob::Draw(TexRect::from(tx, cx, cy, -0.54, w, h))) }
         if let Some(tx) = self.thrust_tex { jobs.push(RenderJob::Draw(TexRect::from(tx, cx, cy, -0.55, w, h))) }
@@ -177,10 +179,11 @@ impl Sprite {
         jobs.push(RenderJob::DrawMany(self.tx_crate, rects));
     }
 
-    pub fn velocity(&self) -> (f32, f32) { (self.vel.x, self.vel.y) }
+    pub fn position(&self) -> V2 { self.pos }
+    pub fn velocity(&self) -> V2 { self.vel }
 
     fn autopilot_reverse(&mut self, dt: Duration) {
-        let origin = V2::at(0.0, 1.0);
+        let origin = V2::at(1.0, 0.0);
         let dest = self.rev_ap_heading;
         if dest.x == 0.0 && dest.y == 0.0 { self.rev_ap_active = false; return }
 
@@ -199,10 +202,10 @@ impl Sprite {
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
         let (ax, ay) = match dir {
-            Direction::Up    => (        0.0,  SHIP_ACCEL),
-            Direction::Down  => (        0.0, -SHIP_ACCEL),
-            Direction::Left  => ( SHIP_ACCEL,         0.0),
-            Direction::Right => (-SHIP_ACCEL,         0.0),
+            Direction::Up    => ( SHIP_ACCEL, 0.0),
+            Direction::Down  => (-SHIP_ACCEL, 0.0),
+            Direction::Left  => (0.0,  SHIP_ACCEL),
+            Direction::Right => (0.0, -SHIP_ACCEL),
         };
 
         // apply force in direction of heading
@@ -217,8 +220,8 @@ impl Sprite {
 
     fn rotate(&mut self, dt: Duration, dir: Direction) {
         let vr = match dir {
-            Direction::Left  => -SHIP_ROT,
-            Direction::Right =>  SHIP_ROT,
+            Direction::Left  =>  SHIP_ROT,
+            Direction::Right => -SHIP_ROT,
             _ => panic!("tilemap cannot rotate this direction ..."),
         };
 

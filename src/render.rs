@@ -1,14 +1,14 @@
 use std::fs::File;
 use std::io::BufReader;
 
-use glium::{Program, Surface, Texture2d, VertexBuffer};
+use glium::{self, Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::Facade;
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::draw_parameters::DrawParameters;
 use glium::index::{NoIndices, IndexBuffer, PrimitiveType};
 use image::{self, GenericImage, ImageFormat};
 
-use units::drawing::V3;
+use units::drawing::{RGBA, V3};
 
 // NOTE: these are not necessarily hard limits, though exceeding them
 //       will at best cause reallocation on the heap, at worst this will
@@ -245,6 +245,19 @@ impl<'scn> RenderGroup<'scn> {
 
         self.textures.push(texture); next_idx
     }
+
+    /// Overwrites an existing texture with the contents of the new buffer
+    pub fn update_texture(&mut self, id: usize, buf: Vec<Vec<(u8,u8,u8,u8)>>) {
+        assert!(!buf.is_empty());
+        let bufh = buf.len() as u32;
+        let bufw = buf[0].len() as u32;
+        let region = glium::Rect {
+            left: 0, bottom: 0,
+            width: bufw, height: bufh,
+        };
+
+        self.textures[id].write(region, buf);
+    }
 }
 
 // renderer primitives below here ...
@@ -275,8 +288,8 @@ fn unit_position(rect: Rect) -> (f32, f32, f32, f32) {
 
 /// Prepares a rotation matrix
 fn rotation_mat(theta: f32) -> [[f32; 4]; 4] {
-    [[ theta.cos(), -theta.sin(), 0.0, 0.0],
-     [ theta.sin(),  theta.cos(), 0.0, 0.0],
+    [[ theta.cos(),  theta.sin(), 0.0, 0.0],
+     [-theta.sin(),  theta.cos(), 0.0, 0.0],
      [         0.0,          0.0, 1.0, 0.0],
      [         0.0,          0.0, 0.0, 1.0]]
 }
