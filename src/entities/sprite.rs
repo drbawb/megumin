@@ -45,7 +45,7 @@ pub struct Sprite {
     tx_idle:  usize,
     tx_fly_w: usize,
     tx_fly_a: usize,
-    tx_fly_s: usize,
+    // tx_fly_s: usize, // TODO: ships may optionally have reverse thrusters?
     tx_fly_d: usize,
 
     tx_fly_q: usize,
@@ -68,12 +68,13 @@ impl Sprite {
             rev_ap_active:  false,
             rev_ap_heading: V2::at(0.0, 1.0),
 
+            // TODO: asset management system would be nice...
             // texture storage
             tx_crate: display.load_tga("assets/sprites/loader/8xcrate.tga"),
             tx_idle:  display.load_tga("assets/sprites/loader/loadertex.tga"),
             tx_fly_w: display.load_tga("assets/sprites/loader/loaderw.tga"),
             tx_fly_a: display.load_tga("assets/sprites/loader/loadera.tga"),
-            tx_fly_s: display.load_tga("assets/sprites/loader/loaders.tga"),
+            // tx_fly_s: display.load_tga("assets/sprites/loader/loaders.tga"),
             tx_fly_d: display.load_tga("assets/sprites/loader/loaderd.tga"),
             tx_fly_q: display.load_tga("assets/sprites/loader/loaderq.tga"),
             tx_fly_e: display.load_tga("assets/sprites/loader/loadere.tga"),
@@ -180,7 +181,6 @@ impl Sprite {
 
     fn autopilot_reverse(&mut self, dt: Duration) {
         let origin = V2::at(0.0, 1.0);
-        let cur  = origin.rot(self.rotation);
         let dest = self.rev_ap_heading;
         if dest.x == 0.0 && dest.y == 0.0 { self.rev_ap_active = false; return }
 
@@ -194,7 +194,7 @@ impl Sprite {
 
         let max_diff = 1.0;
         let abs_diff = f32::abs(src_deg.trunc() - dst_deg.trunc());
-        if (abs_diff <= max_diff) { self.rev_ap_active = false; }
+        if abs_diff <= max_diff { self.rev_ap_active = false; }
     }
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
