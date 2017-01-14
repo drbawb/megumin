@@ -37,6 +37,9 @@ pub struct Sprite {
     rotation: f32,
 
     particles: Vec<Particle>,
+    rev_ap_engaged: bool,
+    rev_ap_active:  bool,
+    rev_ap_heading: V2,
 
     tx_crate: usize,
     tx_idle:  usize,
@@ -59,8 +62,13 @@ impl Sprite {
             vel: V2::at(0.0, 0.0),
             rotation: 0.0,
 
+            // misc storage.
             particles: Vec::with_capacity(render::MAX_PARTICLES),
+            rev_ap_engaged: false,
+            rev_ap_active:  false,
+            rev_ap_heading: V2::at(0.0, 1.0),
 
+            // texture storage
             tx_crate: display.load_tga("assets/sprites/loader/8xcrate.tga"),
             tx_idle:  display.load_tga("assets/sprites/loader/loadertex.tga"),
             tx_fly_w: display.load_tga("assets/sprites/loader/loaderw.tga"),
@@ -78,6 +86,7 @@ impl Sprite {
             // tx_fly_q: display.load_tga("assets/sprites/ship/SHIPQ001.tga"),
             // tx_fly_e: display.load_tga("assets/sprites/ship/SHIPE001.tga"),
 
+            // renderer flags
             engine_tex: None,
             thrust_tex: None,
 
@@ -89,15 +98,29 @@ impl Sprite {
         self.thrust_tex = None;
         self.step_particles(dt);
 
-        // handle controller input
+        // check if player wants us to auto-invert the heading
+        // if so we set the desired heading to our current heading rotated 180deg.
+        if !controller.is_key_held(VKC::S) { self.rev_ap_engaged = false; }
+        if controller.was_key_pressed(VKC::S) && !self.rev_ap_engaged { 
+            self.rev_ap_engaged = true;
+            self.rev_ap_active  = true;
+            self.rev_ap_heading = self.vel.norm().rot(r32::PI);
+
+            println!("ap {:?} vnorm", self.vel.norm());
+            println!("ap {:?} tgt hdg", self.rev_ap_heading);
+        }
+
+        if self.rev_ap_active && self.rev_ap_engaged { self.autopilot_reverse(dt); return }
+
+        // otherwise integrate normal movement
              if controller.is_key_held(VKC::W) { self.engine_tex = Some(self.tx_fly_w); self.integrate(dt, Direction::Up)    }
         else if controller.is_key_held(VKC::A) { self.engine_tex = Some(self.tx_fly_a); self.integrate(dt, Direction::Left)  }
-        else if controller.is_key_held(VKC::S) { self.engine_tex = Some(self.tx_fly_s); self.integrate(dt, Direction::Down)  }
         else if controller.is_key_held(VKC::D) { self.engine_tex = Some(self.tx_fly_d); self.integrate(dt, Direction::Right) }
 
              if controller.is_key_held(VKC::Q) { self.thrust_tex = Some(self.tx_fly_q); self.rotate(dt, Direction::Left)     }
         else if controller.is_key_held(VKC::E) { self.thrust_tex = Some(self.tx_fly_e); self.rotate(dt, Direction::Right)    }
 
+        // fire ze missiles
         if controller.was_key_pressed(VKC::Space) {  self.pewpew(); }
     }
 
@@ -154,6 +177,25 @@ impl Sprite {
     }
 
     pub fn velocity(&self) -> (f32, f32) { (self.vel.x, self.vel.y) }
+
+    fn autopilot_reverse(&mut self, dt: Duration) {
+        let origin = V2::at(0.0, 1.0);
+        let cur  = origin.rot(self.rotation);
+        let dest = self.rev_ap_heading;
+        if dest.x == 0.0 && dest.y == 0.0 { self.rev_ap_active = false; return }
+
+        // rotate & compare to determine if we stop
+        // we discretize this into degrees to avoid FP error
+        self.rotate(dt, Direction::Left);
+
+        let rad_to_deg = 180.0 / r32::PI;
+        let src_deg = origin.rot(self.rotation).theta() * rad_to_deg;
+        let dst_deg = dest.theta() * rad_to_deg;
+
+        let max_diff = 1.0;
+        let abs_diff = f32::abs(src_deg.trunc() - dst_deg.trunc());
+        if (abs_diff <= max_diff) { self.rev_ap_active = false; }
+    }
 
     fn integrate(&mut self, dt: Duration, dir: Direction) {
         let (ax, ay) = match dir {

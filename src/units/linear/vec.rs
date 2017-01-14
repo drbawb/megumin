@@ -43,6 +43,10 @@ impl V2 {
             y: (sin_r * self.x) + (cos_r * self.y),
         }
     }
+
+    pub fn theta(self) -> f32 {
+        f32::atan2(self.y, self.x)
+    }
 }
 
 impl Add for V2 {
