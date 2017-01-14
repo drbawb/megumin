@@ -99,8 +99,6 @@ impl Sprite {
         self.step_particles(dt);
         self.pos += self.vel * dt2ms(dt) as f32;
 
-        println!("ship :: hdg({}) vel({},{})", self.rotation, self.vel.x, self.vel.y);
-
         // check if player wants us to auto-invert the heading
         // if so we set the desired heading to our current heading rotated 180deg.
         if !controller.is_key_held(VKC::S) { self.rev_ap_engaged = false; }

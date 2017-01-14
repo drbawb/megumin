@@ -5,69 +5,96 @@ use rand::{thread_rng, Rng};
 use input::Input;
 use render::{TexRect, RenderGroup, RenderJob};
 use units::dt2ms;
+use units::drawing::RGBA;
+use units::linear::V2;
 
 static MAP_SIZE: usize = 256;
+static STAR_FG: RGBA = (255, 255, 255, 255);
+static STAR_BG: RGBA = (  0,   0,   0, 255);
 
-pub struct TileMap {
-    ofs_x: f32, ofs_y: f32,
-    stars: usize,
+struct Starfield {
+    star_buf_id:  usize,
+    star_buf_mem: Vec<Vec<RGBA>>,
 }
 
-impl TileMap {
-    pub fn new(display: &mut RenderGroup) -> Self {
-        let mut buf = vec![vec![(0,0,0,0); MAP_SIZE]; MAP_SIZE];
+impl Starfield {
+    fn new(display: &mut RenderGroup, tw: usize, th: usize) -> Starfield {
+        let mut star_buf_cpu = vec![vec![STAR_BG; tw]; th];
 
-        let rtex = display.store_texture(fill_star(&mut buf)); 
-        TileMap {
-            ofs_x:    0.0, 
-            ofs_y:    0.0,
+        let mut rng = thread_rng();
+        for si in 0..100 {
+            let x = rng.gen_range(0, tw);
+            let y = rng.gen_range(0, th);
+            star_buf_cpu[y][x] = STAR_FG;
+        }
 
-            stars: rtex,
+        let star_buf_gpu = display.store_texture(star_buf_cpu.clone());
+
+        Starfield {
+            star_buf_id:  star_buf_gpu,
+            star_buf_mem: star_buf_cpu,
+        }
+    }
+}
+
+pub struct World {
+    player_pos: V2,
+
+    tile_width:  usize,
+    tile_height: usize,
+
+    skybox: Vec<Starfield>,
+}
+
+impl World {
+    pub fn new(display: &mut RenderGroup, camera_center: V2, tile_size: (usize, usize)) -> World {
+        let (tw,th) = (tile_size.0, tile_size.1);
+        let mut skies = Vec::with_capacity(9);
+        for i in 0..9 {
+            skies.push(Starfield::new(display, tw, th));
+        }
+
+        World {
+            player_pos: camera_center,
+
+            tile_width:  tw,
+            tile_height: th,
+
+            skybox: skies,
         }
     }
 
-    pub fn update(&mut self, _controller: &Input, dt: Duration, dv: (f32,f32)) {
-        self.integrate(dt, dv);
-    }
+    pub fn update(&mut self, mut pos: V2) {
+        ::std::mem::swap(&mut pos, &mut self.player_pos);
 
-    fn integrate(&mut self, dt: Duration, dv: (f32,f32)) {
-        // TODO: real vectors ...
-        // integrate velocity over time => offset distance
-        self.ofs_x += -dv.0 * dt2ms(dt) as f32;
-        self.ofs_y += -dv.1 * dt2ms(dt) as f32;
-    }
+        // take integer portion as seed
+        let ox = pos.x.trunc();
+        let oy = pos.y.trunc();
+        let tx = self.player_pos.x.trunc();
+        let ty = self.player_pos.y.trunc();
 
+        if tx > ox { // walked right
+            println!("right {} -> {}", ox, tx);
+        } else if tx < ox { // walked left
+            println!("left {} -> {}", ox, tx);
+        }
+
+        if ty > oy { // walked up
+            println!("up");
+        } else if ty < oy { // walked down
+            println!("down");
+        }
+
+    }
+    
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
-        // TODO: normalized coords
         let (w,h) = (1.0, 1.0);
-        let x1 = (self.ofs_x * 2.0) - 1.0;
-        let y1 = (self.ofs_y * 2.0) + 1.0;
+        let x1 = (self.player_pos.x *  2.0) - 1.0;
+        let y1 = (self.player_pos.y * -2.0) + 1.0;
+        let center = self.skybox[4].star_buf_id;
+
         jobs.push(RenderJob::UniformOffset([x1, y1]));
-        // jobs.push(RenderJob::UniformRotate([self.rotation, 0.0]));
-        jobs.push(RenderJob::Draw(TexRect::from(self.stars, 0.0, 0.0, 0.0, w, h)));
+        jobs.push(RenderJob::Draw(TexRect::from(center, 0.0, 0.0, 0.0, w, h)));
         jobs.push(RenderJob::ResetUniforms);
     }
 }
-
-// TODO: this type sig. is ridiculous clean it up future me...
-// builds star fields
-fn fill_star(buf: &mut Vec<Vec<(u8,u8,u8,u8)>>) -> Vec<Vec<(u8,u8,u8,u8)>> {
-    let mut rng   = thread_rng();
-    
-    for y in 0..MAP_SIZE {
-        for x in 0..MAP_SIZE {
-            if !rng.gen_weighted_bool(256) { continue }
-            buf[y][x] = (255,255,255,255);
-        }
-    }
-
-    buf.clone()
-}
-
-// fn fill_64_64(buf: &mut Vec<Vec<(u8,u8,u8,u8)>>, color: (u8,u8,u8,u8)) -> Vec<Vec<(u8,u8,u8,u8)>> {
-//     for row in 0..64 {
-//         for col in 0..64 { buf[row][col] = color }
-//     }
-// 
-//     buf.clone()
-// }
