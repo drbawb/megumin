@@ -114,24 +114,34 @@ impl<'scn> RenderGroup<'scn> {
     pub fn draw<S: Surface>(&mut self, draw_list: &[RenderJob], frame: &mut S) {
          let mut ofs = [0.0, 0.0];
          let mut rot = [0.0, 0.0];
+         let mut trans = [0.0, 0.0];
 
          for job in draw_list {
             match *job {
-                RenderJob::ClearDepth(depth)    => frame.clear_depth(depth),
-                RenderJob::ClearScreen(r,g,b,a) => frame.clear_color(r,g,b,a),
-                RenderJob::UniformOffset(uofs)  => ofs = uofs,
-                RenderJob::UniformRotate(urot)  => rot = urot,
-                RenderJob::ResetUniforms        => { ofs = [0.0, 0.0]; rot = [0.0, 0.0] },
+                RenderJob::ClearDepth(depth)        => frame.clear_depth(depth),
+                RenderJob::ClearScreen(r,g,b,a)     => frame.clear_color(r,g,b,a),
+
+                // stateful rendering
+                RenderJob::ResetUniforms => { ofs = [0.0, 0.0]; rot = [0.0, 0.0]; trans = [0.0, 0.0]; },
+                RenderJob::UniformOffset(uofs)      => ofs = uofs,
+                RenderJob::UniformRotate(urot)      => rot = urot,
+                RenderJob::UniformTranslate(utrans) => trans = utrans,
 
                 RenderJob::Draw(TexRect { texture_id, dim }) => {
                     // draws a normalized rectangle w/ a texture 
                     let (x1,y1, x2,y2) = unit_position(dim);
                     let mat = rotation_mat(rot[0]);
+                    let tmat = [[1.0, 0.0, 0.0, 0.0],
+                                [0.0, 1.0, 0.0, 0.0],
+                                [0.0, 0.0, 1.0, 0.0],
+                                [trans[0], trans[1], 0.0, 1.0]];
+
 
                     let uniforms = uniform! {
-                        tex:  &self.textures[texture_id],
-                        rot:  mat,
-                        tofs: ofs,
+                        tex:   &self.textures[texture_id],
+                        rot:   mat,
+                        trans: tmat,
+                        tofs:  ofs,
                     };
 
                     { // render a quad into the vertex buffer
@@ -162,11 +172,16 @@ impl<'scn> RenderGroup<'scn> {
                 RenderJob::DrawMany(texture_id, ref entities) => {
                     // TODO: maybe identity matrix? force rotation on CPU?
                     // these will all rotate as a single entity
-
                     let mat = rotation_mat(rot[0]);
+                    let tmat = [[1.0, 0.0, 0.0, 0.0],
+                                [0.0, 1.0, 0.0, 0.0],
+                                [0.0, 0.0, 1.0, 0.0],
+                                [trans[0], trans[1], 0.0, 1.0]];
+
                     let uniforms = uniform! {
                         tex:  &self.textures[texture_id],
-                        rot:  mat,
+                        rot:   mat,
+                        trans: tmat,
                         tofs: ofs,
                     };
 
@@ -313,6 +328,7 @@ pub enum RenderJob {
     // TODO: grosssssss... state in my renderer?
     UniformOffset([f32; 2]),
     UniformRotate([f32; 2]),
+    UniformTranslate([f32; 2]),
     ResetUniforms,
     Draw(TexRect),
     DrawMany(usize, Vec<Rect>),
