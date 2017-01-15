@@ -59,7 +59,7 @@ impl Sprite {
         Sprite {
             pos: V2::at(0.5, 0.5),
             vel: V2::at(0.0, 0.0),
-            rotation: 0.0,
+            rotation: (r32::PI) / 2.0,
 
             // misc storage.
             particles: Vec::with_capacity(render::MAX_PARTICLES),

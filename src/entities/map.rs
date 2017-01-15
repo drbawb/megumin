@@ -56,27 +56,15 @@ impl World {
         self.starfield.clear();
 
         // convert player pos to tile space
-        let sw = 1280.0; let sh = 720.0;
-        let ox = (self.player_pos.x - 0.5) * sw;
-        let oy = (self.player_pos.y - 0.5) * sh;
-        println!("player origin: {},{}", ox,oy);
+        let ox = (self.player_pos.x - 0.5);
+        let oy = (self.player_pos.y - 0.5);
 
+        // figure out visible screen boundaries
+        let left  = (ox - 1.0).floor() as i32;
+        let bot   = (oy - 1.0).floor() as i32;
+        let right = (ox + 1.0).ceil()  as i32;
+        let top   = (oy + 1.0).ceil()  as i32;
 
-        // round boundaries to pixels
-        // move them into tilespace
-        // let left  = ((ox - (sw / 2.0)) / (sw / 2.0)).floor() as i32;
-        // let bot   = ((oy - (sh / 2.0)) / (sh / 2.0)).floor() as i32;
-        // let right = ((ox + (sw / 2.0)) / (sw / 2.0)).ceil()  as i32;
-        // let top   = ((oy + (sh / 2.0)) / (sh / 2.0)).ceil()  as i32;
-       
-        let half_sw = sw / 2.0;
-        let half_sh = sh / 2.0;
-        let left  = ((ox - (half_sw * 2.0)) / (sw / 2.0)).floor() as i32;
-        let bot   = ((oy - (half_sh * 2.0)) / (sh / 2.0)).floor() as i32;
-        let right = ((ox + (half_sw * 2.0)) / (sw / 2.0)).ceil()  as i32;
-        let top   = ((ox + (half_sh * 2.0)) / (sh / 2.0)).ceil()  as i32;
-
-        println!("{},{} => {},{}", left,bot, right,top);
         for y in bot..top { // -1 => 1
             for x in left..right { // -1 => 1
                 self.entropy.reseed([x as u32, y as u32, 0xDEADBEEF, 0xCAFEBABE]);
@@ -90,25 +78,28 @@ impl World {
 
                     // generate tile absolute coord in screen space
                     let abs_x = (x as f32) + rel_x;
-                    let abs_y = (y as f32) + rel_y;
+                    let abs_y = (-y as f32) + rel_y;
 
-                    self.starfield.push(Rect {x: abs_x, y: abs_y, z: -0.6, w: 0.00125, h: 0.00125});
+                    self.starfield.push(Rect {x: abs_x, y: abs_y, z: -0.6, w:  1.0 / 1280.0, h: 1.0 / 720.0});
                 }
             }
         }
+
     }
     
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
-        let (w,h) = (1.0, 1.0);
-        let x1 = (self.player_pos.x *  2.0) - 1.0;
-        let y1 = (self.player_pos.y * -2.0) + 1.0;
+        let x1 = (self.player_pos.x * 2.0) - 1.0;
+        let y1 = (self.player_pos.y * 2.0) - 1.0;
 
-        jobs.push(RenderJob::UniformOffset([x1, y1]));
-        jobs.push(RenderJob::Draw(TexRect::from(self.tx_star_bg, 0.0, 0.0, 0.0, w, h)));
-        jobs.push(RenderJob::ResetUniforms);
-
+        // jobs.push(RenderJob::UniformOffset([x1, y1]));
+        // jobs.push(RenderJob::Draw(TexRect::from(self.tx_star_bg, 0.0, 0.0, 0.0, w, h)));
+        // jobs.push(RenderJob::ResetUniforms);
+        
+        // TODO: there is something fucky about coordinates
+        // why are these inverted? why is abs_y in the integration inverted?
+        // nobody knows, but it doesn't work any other way
         if !self.starfield.is_empty() {
-            jobs.push(RenderJob::UniformTranslate([-x1, y1]));
+            jobs.push(RenderJob::UniformTranslate([-x1, -y1]));
             jobs.push(RenderJob::DrawMany(self.tx_star_fg, self.starfield.clone()));
             jobs.push(RenderJob::ResetUniforms);
         }
