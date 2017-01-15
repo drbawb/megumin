@@ -52,7 +52,7 @@ impl BasicShader {
         let program = Program::from_source(display, SHD_SQUARE_VTX, SHD_SQUARE_FRG, None)
                               .expect("could not load basic shader");
 
-        let verts_buffer = VertexBuffer::empty_dynamic(display, (MAX_RECTS * 4))
+        let verts_buffer = VertexBuffer::empty_dynamic(display, (MAX_RECTS * 6))
                                         .expect("could not allocate empty vertex buffer");
 
         let index_buffer = IndexBuffer::empty_dynamic(display, PrimitiveType::TrianglesList, (MAX_RECTS * 6))
@@ -277,7 +277,7 @@ impl<'scn> RenderGroup<'scn> {
 
 // renderer primitives below here ...
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,Debug)]
 pub struct Rect {
     pub x: f32, pub y: f32, pub z: f32,
     pub w: f32, pub h: f32,

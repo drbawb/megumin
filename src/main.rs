@@ -125,14 +125,14 @@ fn main() {
         // process input buffer
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
         player.update(&controller, frame_dt);
-        world.update(player.position());
+        world.update(&mut renderer, player.position());
 
         // TODO: use depth buffer instead of relying on draw order
         // prepare render queue
         render_jobs.push(RenderJob::ClearScreen(0.0, 0.0, 0.0, 1.0));
         render_jobs.push(RenderJob::ClearDepth(1.0));
-        world.draw(&mut render_jobs);
         player.draw(&mut render_jobs);
+        world.draw(&mut render_jobs);
 
         // draw queue to back buffer
         let mut frame = display.draw();

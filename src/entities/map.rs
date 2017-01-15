@@ -1,41 +1,19 @@
 use std::time::Duration;
 
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, SeedableRng, XorShiftRng};
 
 use input::Input;
-use render::{TexRect, RenderGroup, RenderJob};
+use render::{TexRect, Rect, RenderGroup, RenderJob};
 use units::dt2ms;
 use units::drawing::RGBA;
 use units::linear::V2;
 
-static MAP_SIZE: usize = 256;
-static STAR_FG: RGBA = (255, 255, 255, 255);
-static STAR_BG: RGBA = (  0,   0,   0, 255);
+static TILE_SIZE: usize = 256; // GCD(1280,720) = 40
+static MAP_SIZE: usize  = 256;
 
-struct Starfield {
-    star_buf_id:  usize,
-    star_buf_mem: Vec<Vec<RGBA>>,
-}
-
-impl Starfield {
-    fn new(display: &mut RenderGroup, tw: usize, th: usize) -> Starfield {
-        let mut star_buf_cpu = vec![vec![STAR_BG; tw]; th];
-
-        let mut rng = thread_rng();
-        for si in 0..100 {
-            let x = rng.gen_range(0, tw);
-            let y = rng.gen_range(0, th);
-            star_buf_cpu[y][x] = STAR_FG;
-        }
-
-        let star_buf_gpu = display.store_texture(star_buf_cpu.clone());
-
-        Starfield {
-            star_buf_id:  star_buf_gpu,
-            star_buf_mem: star_buf_cpu,
-        }
-    }
-}
+static STAR_BG:   RGBA     = (  0,   0,   0, 255);
+static STAR_FG:   RGBA     = (255, 255, 255, 255);
+static STAR_SEED: [u32; 4] = [157, 27, 24, 133];
 
 pub struct World {
     player_pos: V2,
@@ -43,16 +21,21 @@ pub struct World {
     tile_width:  usize,
     tile_height: usize,
 
-    skybox: Vec<Starfield>,
+    tx_star_bg: usize,
+    tx_star_fg: usize,
+
+    entropy:   XorShiftRng,
+    starfield: Vec<Rect>,
 }
 
 impl World {
     pub fn new(display: &mut RenderGroup, camera_center: V2, tile_size: (usize, usize)) -> World {
         let (tw,th) = (tile_size.0, tile_size.1);
-        let mut skies = Vec::with_capacity(9);
-        for i in 0..9 {
-            skies.push(Starfield::new(display, tw, th));
-        }
+
+        let fg_bitmap  = vec![vec![STAR_FG; 1]; 1];
+        let bg_bitmap  = vec![vec![STAR_BG; 1]; 1];
+        let star_fg_id = display.store_texture(fg_bitmap);
+        let star_bg_id = display.store_texture(bg_bitmap);
 
         World {
             player_pos: camera_center,
@@ -60,41 +43,74 @@ impl World {
             tile_width:  tw,
             tile_height: th,
 
-            skybox: skies,
+            tx_star_bg: star_bg_id,
+            tx_star_fg: star_fg_id,
+
+            entropy:   XorShiftRng::from_seed(STAR_SEED),
+            starfield: vec![],
         }
     }
 
-    pub fn update(&mut self, mut pos: V2) {
-        ::std::mem::swap(&mut pos, &mut self.player_pos);
+    pub fn update(&mut self, gpu: &mut RenderGroup, pos: V2) {
+        self.player_pos = pos;
+        self.starfield.clear();
 
-        // take integer portion as seed
-        let ox = pos.x.trunc();
-        let oy = pos.y.trunc();
-        let tx = self.player_pos.x.trunc();
-        let ty = self.player_pos.y.trunc();
+        // convert player pos to tile space
+        let sw = 1280.0; let sh = 720.0;
+        let ox = (self.player_pos.x - 0.5) * sw;
+        let oy = (self.player_pos.y - 0.5) * sh;
+        println!("player origin: {},{}", ox,oy);
 
-        if tx > ox { // walked right
-            println!("right {} -> {}", ox, tx);
-        } else if tx < ox { // walked left
-            println!("left {} -> {}", ox, tx);
+
+        // round boundaries to pixels
+        // move them into tilespace
+        // let left  = ((ox - (sw / 2.0)) / (sw / 2.0)).floor() as i32;
+        // let bot   = ((oy - (sh / 2.0)) / (sh / 2.0)).floor() as i32;
+        // let right = ((ox + (sw / 2.0)) / (sw / 2.0)).ceil()  as i32;
+        // let top   = ((oy + (sh / 2.0)) / (sh / 2.0)).ceil()  as i32;
+       
+        let half_sw = sw / 2.0;
+        let half_sh = sh / 2.0;
+        let left  = ((ox - (half_sw * 2.0)) / (sw / 2.0)).floor() as i32;
+        let bot   = ((oy - (half_sh * 2.0)) / (sh / 2.0)).floor() as i32;
+        let right = ((ox + (half_sw * 2.0)) / (sw / 2.0)).ceil()  as i32;
+        let top   = ((ox + (half_sh * 2.0)) / (sh / 2.0)).ceil()  as i32;
+
+        println!("{},{} => {},{}", left,bot, right,top);
+        for y in bot..top { // -1 => 1
+            for x in left..right { // -1 => 1
+                self.entropy.reseed([x as u32, y as u32, 0xDEADBEEF, 0xCAFEBABE]);
+
+                for i in 0..50 {
+                    // generate tile relative coord for star
+                    let px = self.entropy.gen_range(0,1280);
+                    let py = self.entropy.gen_range(0,720);
+                    let rel_x = (px as f32) / 1280.0;
+                    let rel_y = (py as f32) /  720.0;
+
+                    // generate tile absolute coord in screen space
+                    let abs_x = (x as f32) + rel_x;
+                    let abs_y = (y as f32) + rel_y;
+
+                    self.starfield.push(Rect {x: abs_x, y: abs_y, z: -0.6, w: 0.00125, h: 0.00125});
+                }
+            }
         }
-
-        if ty > oy { // walked up
-            println!("up");
-        } else if ty < oy { // walked down
-            println!("down");
-        }
-
     }
     
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
         let (w,h) = (1.0, 1.0);
         let x1 = (self.player_pos.x *  2.0) - 1.0;
         let y1 = (self.player_pos.y * -2.0) + 1.0;
-        let center = self.skybox[4].star_buf_id;
 
         jobs.push(RenderJob::UniformOffset([x1, y1]));
-        jobs.push(RenderJob::Draw(TexRect::from(center, 0.0, 0.0, 0.0, w, h)));
+        jobs.push(RenderJob::Draw(TexRect::from(self.tx_star_bg, 0.0, 0.0, 0.0, w, h)));
         jobs.push(RenderJob::ResetUniforms);
+
+        if !self.starfield.is_empty() {
+            jobs.push(RenderJob::UniformTranslate([-x1, y1]));
+            jobs.push(RenderJob::DrawMany(self.tx_star_fg, self.starfield.clone()));
+            jobs.push(RenderJob::ResetUniforms);
+        }
     }
 }
