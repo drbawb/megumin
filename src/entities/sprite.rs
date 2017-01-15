@@ -178,7 +178,6 @@ impl Sprite {
     }
 
     pub fn position(&self) -> V2 { self.pos }
-    pub fn velocity(&self) -> V2 { self.vel }
 
     fn autopilot_reverse(&mut self, dt: Duration) {
         let origin = V2::at(1.0, 0.0);

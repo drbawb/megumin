@@ -20,8 +20,6 @@ use render::{RenderGroup, RenderJob};
 use units::linear::V2;
 
 static TARGET_FPS_MS: u64 = 1000 / 120;
-static SCREEN_W: usize = 1280;
-static SCREEN_H: usize =  720;
 
 fn main() {
     // setup hardware
@@ -51,7 +49,7 @@ fn main() {
     let mut render_jobs = vec![];
    
     // TODO: some sort of entity buffer
-    let mut world  = entities::World::new(&mut renderer, V2::at(0.5, 0.5), (SCREEN_W, SCREEN_H));
+    let mut world  = entities::World::new(&mut renderer, V2::at(0.5, 0.5));
     let mut player = entities::Sprite::new(&mut renderer);
 
     // the runloop is a fairly straightforward game loop, it spends time performing
@@ -125,7 +123,7 @@ fn main() {
         // process input buffer
         if controller.was_key_pressed(VKC::Escape) { break 'runloop }
         player.update(&controller, frame_dt);
-        world.update(&mut renderer, player.position());
+        world.update(player.position());
 
         // TODO: use depth buffer instead of relying on draw order
         // prepare render queue

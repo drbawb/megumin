@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::BufReader;
 
-use glium::{self, Program, Surface, Texture2d, VertexBuffer};
+use glium::{Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::Facade;
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::draw_parameters::DrawParameters;
@@ -16,7 +16,7 @@ use units::drawing::{RGBA, V3};
 
 // renderer settings
 pub static MAX_PARTICLES: usize = 256;
-pub static MAX_RECTS: usize = 1000;
+pub static MAX_RECTS: usize = 10000;
 pub static MAX_TEXTURES: usize = 128;
 
 // shader etc ...
@@ -67,7 +67,7 @@ impl BasicShader {
     }
 }
 
-fn gen_checkers(buf: &mut Vec<Vec<(u8,u8,u8,u8)>>) {
+fn gen_checkers(buf: &mut Vec<Vec<RGBA>>) {
     for sh in 0..8 {
         for sw in 0..8 {
             let color = (sh + sw) % 2 == 0;
@@ -253,25 +253,12 @@ impl<'scn> RenderGroup<'scn> {
     /// Stores a 2D pixel buffer into a static texture and returns an
     /// integer handle to it which can be used to instruct the renderer
     /// to bank-in that texture for a program pass.
-    pub fn store_texture(&mut self, buf: Vec<Vec<(u8,u8,u8,u8)>>) -> usize {
+    pub fn store_texture(&mut self, buf: Vec<Vec<RGBA>>) -> usize {
         let next_idx = self.textures.len();
         let texture  = Texture2d::new(self.gpu, buf)
                                  .expect("could not load userspace texture");
 
         self.textures.push(texture); next_idx
-    }
-
-    /// Overwrites an existing texture with the contents of the new buffer
-    pub fn update_texture(&mut self, id: usize, buf: Vec<Vec<(u8,u8,u8,u8)>>) {
-        assert!(!buf.is_empty());
-        let bufh = buf.len() as u32;
-        let bufw = buf[0].len() as u32;
-        let region = glium::Rect {
-            left: 0, bottom: 0,
-            width: bufw, height: bufh,
-        };
-
-        self.textures[id].write(region, buf);
     }
 }
 
@@ -301,7 +288,7 @@ fn unit_position(rect: Rect) -> (f32, f32, f32, f32) {
     (x1,y1, x2,y2)
 }
 
-/// Prepares a rotation matrix
+/// Prepares a rotation matrix from an angle in radians
 fn rotation_mat(theta: f32) -> [[f32; 4]; 4] {
     [[ theta.cos(),  theta.sin(), 0.0, 0.0],
      [-theta.sin(),  theta.cos(), 0.0, 0.0],
@@ -321,6 +308,7 @@ impl TexRect {
     }
 }
 
+#[allow(dead_code)]
 pub enum RenderJob {
     ClearDepth(f32),
     ClearScreen(f32, f32, f32, f32),
