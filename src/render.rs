@@ -222,8 +222,7 @@ impl<'scn> RenderGroup<'scn> {
         let file    = File::open(path).expect("could not read sprite");
         let buf_io  = BufReader::new(file);
         let tga_buf = image::load(buf_io, ImageFormat::TGA)
-                            .expect("could not parse TGA file")
-                            .flipv();
+                            .expect("could not parse TGA file");
 
         // allocate CPU-side storage for the image
         let (dim_x, dim_y) = (tga_buf.width() as usize, tga_buf.height() as usize);
@@ -272,18 +271,8 @@ pub struct Rect {
 
 /// Translates a unit-length vector to the unit cube
 fn unit_position(rect: Rect) -> (f32, f32, f32, f32) {
-    // f(x) = (2x) - 1
-    // f(0) = (2*0) - 1 = -1
-    // f(1) = (2*1) - 1 =  1
-    // (grows right, e.g: +)
-    //
-    // f(y) = (-2x) + 1
-    // f(0) = (-2*0) + 1 =  1
-    // f(1) = (-2*1) + 1 = -1
-    // (grows down, e.g: -)
-
     let x1 = (rect.x *  2.0) - 1.0; let x2 = x1 + (rect.w * 2.0);
-    let y1 = (rect.y * -2.0) + 1.0; let y2 = y1 - (rect.h * 2.0);
+    let y1 = (rect.y * 2.0)  - 1.0; let y2 = y1 + (rect.h * 2.0);
 
     (x1,y1, x2,y2)
 }

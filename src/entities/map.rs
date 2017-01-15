@@ -63,7 +63,7 @@ impl World {
 
                     // generate tile absolute coord in screen space
                     let abs_x = (x as f32) + rel_x;
-                    let abs_y = (-y as f32) + rel_y;
+                    let abs_y = (y as f32) + rel_y;
 
                     self.starfield.push(Rect {x: abs_x, y: abs_y, z: -0.6, w:  1.0 / 1280.0, h: 1.0 / 720.0});
                 }

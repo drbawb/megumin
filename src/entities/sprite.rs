@@ -145,14 +145,9 @@ impl Sprite {
         let cy = self.pos.y - (h / 2.0);
 
         // fire from current heading, no accel time
-        let cos_r = self.rotation.cos();
-        let sin_r = self.rotation.sin();
-
-        let (vx, vy) = (0.0f32, -BULLET_VMAX); // Q: why is this backwards?
-        let rvx = (cos_r * vx) - (sin_r * vy);
-        let rvy = (sin_r * vx) + (cos_r * vy);
-
-        self.particles.push(Particle::at_speed(cx, cy, rvx, rvy));
+        let bvel = V2::at(1.0, 0.0).rot(self.rotation);
+        let bvel = bvel.set_len(BULLET_VMAX);
+        self.particles.push(Particle::at_speed(cx, cy, bvel.x, bvel.y));
     }
 
     pub fn draw(&self, jobs: &mut Vec<RenderJob>) {
