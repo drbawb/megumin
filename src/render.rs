@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::BufReader;
+use std::rc::Rc;
 
 use glium::{Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::Facade;
@@ -16,7 +18,7 @@ use units::drawing::{RGBA, V3};
 
 // renderer settings
 pub static MAX_PARTICLES: usize = 256;
-pub static MAX_RECTS: usize = 10000;
+pub static MAX_RECTS: usize = 768;
 pub static MAX_TEXTURES: usize = 128;
 
 // shader etc ...
@@ -185,7 +187,7 @@ impl<'scn> RenderGroup<'scn> {
                         tofs: ofs,
                     };
 
-                    let verts: Vec<V3> = entities.iter().flat_map(|dim| {
+                    let verts: Vec<V3> = entities.borrow().iter().flat_map(|dim| {
                         let (x1,y1, x2,y2) = unit_position(*dim);
 
                         vec![
@@ -308,5 +310,5 @@ pub enum RenderJob {
     UniformTranslate([f32; 2]),
     ResetUniforms,
     Draw(TexRect),
-    DrawMany(usize, Vec<Rect>),
+    DrawMany(usize, Rc<RefCell<Vec<Rect>>>),
 }

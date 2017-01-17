@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use rand::{Rng, SeedableRng, XorShiftRng};
 
 use render::{Rect, RenderGroup, RenderJob};
@@ -15,7 +18,7 @@ pub struct World {
     tx_star_fg: usize,
 
     entropy:   XorShiftRng,
-    starfield: Vec<Rect>,
+    starfield: Rc<RefCell<Vec<Rect>>>,
 }
 
 impl World {
@@ -31,14 +34,18 @@ impl World {
             tx_star_bg: star_bg_id,
             tx_star_fg: star_fg_id,
 
+            // TODO: magic number for capacity
+            // center + cardinal directions + diagonals = 9 screens
+            // 50 stars per screen, 1 rect per star...
             entropy:   XorShiftRng::from_seed(STAR_SEED),
-            starfield: vec![],
+            starfield: Rc::new(RefCell::new(Vec::with_capacity(3 * 3 * 50))),
         }
     }
 
     pub fn update(&mut self, pos: V2) {
+        let mut starfield = self.starfield.borrow_mut();
         self.player_pos = pos;
-        self.starfield.clear();
+        starfield.clear();
 
         // convert player pos to tile space
         let ox = self.player_pos.x - 0.5;
@@ -65,7 +72,7 @@ impl World {
                     let abs_x = (x as f32) + rel_x;
                     let abs_y = (y as f32) + rel_y;
 
-                    self.starfield.push(Rect {x: abs_x, y: abs_y, z: -0.6, w:  1.0 / 1280.0, h: 1.0 / 720.0});
+                    starfield.push(Rect {x: abs_x, y: abs_y, z: -0.6, w:  1.0 / 1280.0, h: 1.0 / 720.0});
                 }
             }
         }
@@ -79,7 +86,7 @@ impl World {
         // TODO: there is something fucky about coordinates
         // why are these inverted? why is abs_y in the integration inverted?
         // nobody knows, but it doesn't work any other way
-        if !self.starfield.is_empty() {
+        if !self.starfield.borrow().is_empty() {
             jobs.push(RenderJob::UniformTranslate([-x1, -y1]));
             jobs.push(RenderJob::DrawMany(self.tx_star_fg, self.starfield.clone()));
             jobs.push(RenderJob::ResetUniforms);

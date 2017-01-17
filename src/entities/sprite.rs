@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::f32::consts as r32;
+use std::rc::Rc;
 use std::time::Duration;
 
 use glium::glutin::VirtualKeyCode as VKC;
@@ -36,6 +38,8 @@ pub struct Sprite {
     rotation: f32,
 
     particles: Vec<Particle>,
+    particle_drawbuf: Rc<RefCell<Vec<Rect>>>,
+
     rev_ap_engaged: bool,
     rev_ap_active:  bool,
     rev_ap_heading: V2,
@@ -63,6 +67,8 @@ impl Sprite {
 
             // misc storage.
             particles: Vec::with_capacity(render::MAX_PARTICLES),
+            particle_drawbuf: Rc::new(RefCell::new(Vec::with_capacity(render::MAX_PARTICLES))),
+
             rev_ap_engaged: false,
             rev_ap_active:  false,
             rev_ap_heading: V2::at(0.0, 1.0),
@@ -89,7 +95,6 @@ impl Sprite {
             // renderer flags
             engine_tex: None,
             thrust_tex: None,
-
         }
     }
 
@@ -141,8 +146,8 @@ impl Sprite {
         if self.particles.len() == render::MAX_PARTICLES { return }
 
         let (w,h) = (0.035, 0.035);
-        let cx = self.pos.x - (w / 2.0);
-        let cy = self.pos.y - (h / 2.0);
+        let cx = 0.5;
+        let cy = 0.5;
 
         // fire from current heading, no accel time
         let bvel = V2::at(1.0, 0.0).rot(self.rotation);
@@ -164,12 +169,17 @@ impl Sprite {
         jobs.push(RenderJob::ResetUniforms);
        
         // draw particles 
-        let rects: Vec<Rect> = self.particles.iter()
-                                             .map(|p| Rect { x: p.pos.x, y: p.pos.y, z: -0.56, w: w / 2.0, h: h / 2.0 })
-                                             .collect();
+        if self.particles.is_empty() { return; }
 
-        if rects.is_empty() { return }
-        jobs.push(RenderJob::DrawMany(self.tx_crate, rects));
+        { // store particles in drawbuffer
+            let mut pbuf = self.particle_drawbuf.borrow_mut();
+            pbuf.clear();
+            for p in &self.particles {
+                pbuf.push(Rect { x: p.pos.x, y: p.pos.y, z: -0.56, w: w / 2.0, h: h / 2.0 });
+            }
+        }
+
+        jobs.push(RenderJob::DrawMany(self.tx_crate, self.particle_drawbuf.clone()));
     }
 
     pub fn position(&self) -> V2 { self.pos }
